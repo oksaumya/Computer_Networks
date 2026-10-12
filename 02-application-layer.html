@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2 · The Application Layer — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="On this page"></nav>
+<main>
+
+<p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Weeks 3–4</span><span class="tag">Lectures 5–8</span></p>
+<h1>The Application Layer: HTTP, HTTPS, DNS, Email, CDNs</h1>
+<p class="lede">The application layer is the top layer, the one your apps speak. These four lectures cover the protocols you use every day without noticing.</p>
+
+<!-- ============================================================ L5 -->
+<section class="lec" id="l5">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 5</span></p>
+  <h2>Lecture 5 — HTTP/1.1 → HTTP/2 → HTTP/3, client–server vs P2P, REST</h2>
+  <p class="oneline">HTTP is a simple ask-and-answer protocol: the browser sends a request, the server sends back a response. Each new version makes loading many files at once faster.</p>
+</header>
+
+<h3 id="l5-arch">Client–server vs peer-to-peer</h3>
+<p>There are two ways to organise who talks to whom.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>Client–server</th><th>Peer-to-peer (P2P)</th></tr></thead>
+<tbody>
+<tr><th>Idea</th><td>Centralised. Powerful <strong>servers</strong> store data and answer requests from many <strong>clients</strong>.</td><td>Decentralised. Every device (a <strong>peer</strong>) is both client and server, with equal rights.</td></tr>
+<tr><th>Who is always on?</th><td>The server, at a fixed, known address</td><td>Nobody has to be. Peers come and go.</td></tr>
+<tr><th>Do clients talk to each other?</th><td>No, only through the server</td><td>Yes, directly</td></tr>
+<tr><th>Scaling</th><td>More users need more or bigger servers</td><td>Self-scaling: each new peer brings demand <em>and</em> capacity</td></tr>
+<tr><th>Weak point</th><td>The server is a single point of failure and a cost</td><td>Hard to manage and secure; quality depends on the peers</td></tr>
+<tr><th>Examples</th><td>Web, email, Instagram, Netflix</td><td>BitTorrent file sharing</td></tr>
+</tbody></table></div>
+
+<h3>The application layer</h3>
+<p>The application layer (Layer 7) is the direct interface between software (web browsers, email apps) and the network below. It defines the messages that apps exchange. Each kind of app has its own protocol:</p>
+<div class="tw"><table>
+<thead><tr><th>What you do</th><th>Protocol</th></tr></thead>
+<tbody>
+<tr><td>Browse the web</td><td>HTTP / HTTPS</td></tr>
+<tr><td>Turn a name into an IP address</td><td>DNS</td></tr>
+<tr><td>Send email</td><td>SMTP</td></tr>
+<tr><td>Read email</td><td>POP3, IMAP</td></tr>
+<tr><td>Transfer files</td><td>FTP</td></tr>
+<tr><td>Log in to a remote machine</td><td>SSH (older: Telnet)</td></tr>
+</tbody></table></div>
+
+<h3 id="l5-http">HTTP: the web's language</h3>
+<p><strong>HTTP</strong> (HyperText Transfer Protocol) is a <strong>stateless request–response</strong> protocol.</p>
+<ul>
+<li><strong>Request–response:</strong> the client (browser) sends a <strong>request</strong>; the server processes it and sends back a <strong>response</strong>.</li>
+<li><strong>Stateless:</strong> each exchange is independent. The server remembers nothing between requests.</li>
+</ul>
+<div class="box note" data-t="If HTTP is stateless, how does your shopping cart stay full?">
+<p><strong>Cookies and session tokens.</strong> The server gives your browser a small ID (a cookie). The browser sends that ID back with every request, so the server can look up who you are. The memory lives in the cookie and the server's database, not in HTTP itself.</p>
+</div>
+
+<h4>Anatomy of an HTTP request</h4>
+<pre><code><span class="hl">GET /index.html HTTP/1.1</span>          <span class="c">← request line: METHOD  URL  VERSION</span>
+Host: example.com                 <span class="c">← headers (one per line)</span>
+User-Agent: Chrome
+Accept-Language: en-us
+                                  <span class="c">← empty line marks the end of the headers</span>
+<span class="c">(body: optional, used by POST / PUT, e.g. form data or JSON)</span></code></pre>
+<div class="tw"><table>
+<thead><tr><th>Part</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><th>Request line</th><td><strong>Method</strong> (what to do: GET, POST…), <strong>URL</strong> (which resource: <code>/index.html</code>, <code>/api/data</code>), <strong>HTTP version</strong></td></tr>
+<tr><th>Headers</th><td>Extra information about the request or the client. Common ones: <code>Host</code> (the server's domain name), <code>User-Agent</code> (which browser/app), <code>Accept</code> (what formats the client can read, e.g. <code>text/html</code>, <code>application/json</code>), <code>Content-Type</code> (format of the body being sent)</td></tr>
+<tr><th>Body (optional)</th><td>The data being sent, for POST, PUT, PATCH. Example: <code>{ "username": "user1", "password": "password123" }</code></td></tr>
+</tbody></table></div>
+
+<h4>Anatomy of an HTTP response</h4>
+<pre><code><span class="hl">HTTP/1.1 200 OK</span>                   <span class="c">← status line: VERSION  CODE  MESSAGE</span>
+Content-Type: text/html           <span class="c">← headers</span>
+Content-Length: 88
+Server: Apache/2.4.2
+
+&lt;html&gt;&lt;body&gt;&lt;h1&gt;Welcome to Example.com&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;   <span class="c">← body</span></code></pre>
+<div class="tw"><table>
+<thead><tr><th>Part</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><th>Status line</th><td>HTTP version, a 3-digit <strong>status code</strong>, and a short message (<code>OK</code>, <code>Not Found</code>)</td></tr>
+<tr><th>Headers</th><td><code>Content-Type</code> (what the body is), <code>Content-Length</code> (body size in bytes), <code>Server</code> (server software), <code>Date</code></td></tr>
+<tr><th>Body</th><td>The thing you asked for: HTML, an image, JSON…</td></tr>
+</tbody></table></div>
+
+<h4>Methods</h4>
+<div class="tw"><table>
+<thead><tr><th>Method</th><th>Meaning</th><th>Has a body?</th><th>CRUD</th></tr></thead>
+<tbody>
+<tr><th>GET</th><td>Fetch a resource. Changes nothing on the server.</td><td>No</td><td>Read</td></tr>
+<tr><th>POST</th><td>Send data to create something new (submit a form, sign up)</td><td>Yes</td><td>Create</td></tr>
+<tr><th>PUT</th><td>Replace/update an existing resource</td><td>Yes</td><td>Update</td></tr>
+<tr><th>DELETE</th><td>Remove a resource</td><td>Usually no</td><td>Delete</td></tr>
+</tbody></table></div>
+<p class="small muted">Also seen: PATCH (update part of a resource), HEAD (like GET but headers only), OPTIONS (ask what is allowed).</p>
+
+<h4>Status codes</h4>
+<p>The first digit tells you the class.</p>
+<div class="tw"><table>
+<thead><tr><th>Class</th><th>Meaning</th><th>Codes to know</th></tr></thead>
+<tbody>
+<tr><th>2xx</th><td>Success</td><td><code>200 OK</code> — worked, here is the resource</td></tr>
+<tr><th>3xx</th><td>Redirection — look somewhere else</td><td><code>301 Moved Permanently</code>, <code>302 Found</code> (temporary redirect), <code>304 Not Modified</code> (your cached copy is still good)</td></tr>
+<tr><th>4xx</th><td><strong>Client</strong> error — you asked wrongly</td><td><code>403 Forbidden</code> (understood, but refused), <code>404 Not Found</code></td></tr>
+<tr><th>5xx</th><td><strong>Server</strong> error — the server broke</td><td><code>500 Internal Server Error</code></td></tr>
+</tbody></table></div>
+<div class="box warn" data-t="Don't confuse">
+<p><strong>4xx = your fault, 5xx = server's fault.</strong> And <strong>301</strong> is permanent (browsers remember it) while <strong>302</strong> is temporary.</p>
+</div>
+
+<h3 id="l5-persistent">Non-persistent vs persistent connections</h3>
+<p>HTTP runs on top of a TCP connection. A web page is many files (HTML, CSS, JS, images). The question is whether each file gets its own TCP connection.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>Non-persistent</th><th>Persistent (keep-alive)</th></tr></thead>
+<tbody>
+<tr><th>Rule</th><td>Open a TCP connection, fetch <strong>one</strong> object, close it. Repeat for every object.</td><td>Open one TCP connection and <strong>keep it open</strong> for many objects.</td></tr>
+<tr><th>Cost per object</th><td>About 2 RTTs: 1 for the TCP handshake + 1 for request and response</td><td>About 1 RTT after the first (no new handshake)</td></tr>
+<tr><th>Used by</th><td>HTTP/1.0</td><td>HTTP/1.1 (default) and later</td></tr>
+</tbody></table></div>
+<p class="small muted">RTT = round-trip time: the time for a small packet to go to the server and come back.</p>
+<div class="box example" data-t="Worked example">
+<p>A page has 1 HTML file and 10 images. Count RTTs (ignore file transfer time, no parallel connections).</p>
+<p><strong>Non-persistent:</strong> 11 objects × 2 RTT = <strong>22 RTT</strong>.<br>
+<strong>Persistent:</strong> 1 RTT handshake once + 11 objects × 1 RTT = <strong>12 RTT</strong>.</p>
+</div>
+
+<h3 id="l5-hol">Head-of-line (HoL) blocking</h3>
+<p><strong>Head-of-line blocking</strong> means: the item at the front of a queue is slow, so everything behind it waits even though it is ready.</p>
+<p>In HTTP/1.1, responses on one connection must come back <strong>in the same order</strong> as the requests (FIFO: first in, first out). If the first response is a slow image, the CSS, JS, and icon behind it are all stuck.</p>
+<figure>
+<div class="flow">
+  <div class="node r"><b>slow image ⌛</b><small>at the front</small></div>
+  <div class="arr">←</div>
+  <div class="node"><b>CSS</b><small>ready, blocked</small></div>
+  <div class="arr">←</div>
+  <div class="node"><b>JS</b><small>ready, blocked</small></div>
+  <div class="arr">←</div>
+  <div class="node"><b>icon</b><small>ready, blocked</small></div>
+</div>
+<figcaption>HTTP/1.1: one connection, responses must leave in order.</figcaption>
+</figure>
+
+<h3 id="l5-versions">The evolution: HTTP/1.0 → 1.1 → 2 → 3</h3>
+<div class="box analogy" data-t="Class analogy — the online shopping delivery">
+<p>You order an outfit: shirt, pants, shoes, socks. These are your HTML, CSS, JS, and images.</p>
+<ul>
+<li><strong>HTTP/1.0:</strong> the truck carries <strong>one item per trip</strong> and returns to the warehouse before the next. A new connection for every file.</li>
+<li><strong>HTTP/1.1:</strong> the truck arrives with all four items (keep-alive) but <strong>unloads them one by one</strong>, in order.</li>
+<li><strong>HTTP/2:</strong> the whole tray is served at once and you pick what to eat first. Many items share one trip without waiting in line.</li>
+<li><strong>HTTP/3:</strong> every item you order has its own kitchen window and its own staff. A delay on one does not touch the others.</li>
+</ul>
+</div>
+
+<h4>HTTP/1.0 (1996)</h4>
+<ul><li>One request per TCP connection. No persistent connection. Slow and repetitive.</li></ul>
+<h4>HTTP/1.1 (1997)</h4>
+<ul>
+<li><strong>Persistent (keep-alive) connections</strong>, caching headers, and the <code>Host</code> header.</li>
+<li>Still has <strong>head-of-line blocking</strong>: one request at a time per connection.</li>
+<li>Workaround used by browsers: open about <strong>6 parallel TCP connections</strong> per site to fake parallelism. Costly: 6× the setup, 6× the overhead.</li>
+<li><strong>Pipelining</strong> (optional): send several requests without waiting for each response. But responses must still arrive in order (FIFO), and only safe methods (GET, HEAD, OPTIONS) may be pipelined, not POST/PUT, because those change things on the server. Rarely used in practice.</li>
+</ul>
+<h4>HTTP/2 (2015)</h4>
+<ul>
+<li>Uses a <strong>single TCP connection</strong>.</li>
+<li><strong>Binary protocol:</strong> messages are encoded as binary frames (the "framing layer"), not text.</li>
+<li><strong>Multiplexing:</strong> many requests and responses are in flight at once, as separate <strong>streams</strong> on the one connection. Their frames are interleaved, so a slow response no longer blocks the others. This fixes HoL blocking at the HTTP level.</li>
+<li><strong>HPACK:</strong> header compression. Headers repeat a lot (same cookies, same user agent), so they are sent in compressed form.</li>
+<li><strong>Server push:</strong> the server can send files it knows you will need before you ask.</li>
+<li><strong>Remaining problem:</strong> everything rides on one TCP connection, and TCP delivers bytes strictly in order. If <strong>one TCP segment is lost, all streams stall</strong> until it is re-sent. This is <strong>TCP-level HoL blocking</strong>.</li>
+</ul>
+<h4>HTTP/3 (2022)</h4>
+<ul>
+<li>Runs over <strong>QUIC</strong>, a transport protocol built on <strong>UDP</strong> instead of TCP (first developed at Google).</li>
+<li>QUIC gives each stream its own ordering. <strong>A lost packet delays only its own stream.</strong> HoL blocking is gone.</li>
+<li><strong>Faster setup:</strong> QUIC combines the connection handshake and the TLS 1.3 encryption handshake. A new connection needs <strong>1 RTT</strong>; a repeat visit can send data with <strong>0 RTT</strong>. (TCP + TLS 1.3 needs 2 RTTs.)</li>
+<li>Encryption is built in and always on.</li>
+</ul>
+
+<div class="box exam" data-t="The comparison table to memorise">
+<div class="tw"><table>
+<thead><tr><th></th><th>HTTP/1.1</th><th>HTTP/2</th><th>HTTP/3</th></tr></thead>
+<tbody>
+<tr><th>Transport</th><td>TCP</td><td>TCP</td><td>QUIC over UDP</td></tr>
+<tr><th>Connections per site</th><td>About 6 in parallel</td><td>1</td><td>1</td></tr>
+<tr><th>Format</th><td>Text</td><td>Binary frames</td><td>Binary frames</td></tr>
+<tr><th>Many requests at once?</th><td>No (one at a time per connection)</td><td>Yes, multiplexed streams</td><td>Yes, independent streams</td></tr>
+<tr><th>Header compression</th><td>None</td><td>HPACK</td><td>QPACK</td></tr>
+<tr><th>HoL blocking</th><td>At HTTP level</td><td>HTTP level fixed; <strong>TCP level remains</strong></td><td>None: loss is isolated to one stream</td></tr>
+<tr><th>Setup before first request</th><td>TCP 1 RTT (+ TLS)</td><td>TCP 1 RTT + TLS</td><td>1 RTT new, 0 RTT repeat</td></tr>
+</tbody></table></div>
+</div>
+
+<h3 id="l5-rest">APIs and REST</h3>
+<p>Browsers talk to servers, but apps also need to talk to other apps (your food-delivery app asks a maps service for a route). They do this through an <strong>API</strong> (Application Programming Interface): a defined set of requests one program can make to another.</p>
+<p><strong>REST</strong> (Representational State Transfer) is the most common style for web APIs. A 2024 analysis estimated about 83% of public APIs use it. Its principles:</p>
+<ol>
+<li><strong>Resources.</strong> Everything is a resource (a user, an order, a photo) with its own URL, such as <code>/users/42</code>. URLs are nouns, not verbs.</li>
+<li><strong>HTTP methods as CRUD.</strong> You act on a resource using the standard methods.</li>
+<li><strong>Statelessness.</strong> Each request carries everything the server needs (for example a login token). The server keeps no memory of earlier requests.</li>
+</ol>
+<div class="tw"><table>
+<thead><tr><th>CRUD action</th><th>Method</th><th>Example request</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><th>Create</th><td>POST</td><td><code>POST /users</code></td><td>Add a new user</td></tr>
+<tr><th>Read</th><td>GET</td><td><code>GET /users/42</code></td><td>Fetch user 42</td></tr>
+<tr><th>Update</th><td>PUT</td><td><code>PUT /users/42</code></td><td>Replace user 42's data</td></tr>
+<tr><th>Delete</th><td>DELETE</td><td><code>DELETE /users/42</code></td><td>Remove user 42</td></tr>
+</tbody></table></div>
+<p class="small muted">Data is usually sent as JSON. OpenAPI (Swagger) is a standard way to document a REST API, as shown in class with the Petstore demo.</p>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>What does "HTTP is stateless" mean, and how do websites remember you anyway?</summary><p>The server keeps no memory between requests; each one is independent. Websites use cookies or session tokens that the browser sends with every request.</p></details>
+<details><summary>What are the three parts of an HTTP request line?</summary><p>Method, URL, HTTP version. Example: <code>GET /index.html HTTP/1.1</code>.</p></details>
+<details><summary>Match: 200, 301, 404, 500.</summary><p>200 OK (success). 301 Moved Permanently (redirect). 404 Not Found (client error). 500 Internal Server Error (server error).</p></details>
+<details><summary>A page has 1 HTML file and 5 images. How many RTTs with non-persistent HTTP, and with persistent HTTP?</summary><p>Non-persistent: 6 × 2 = 12 RTT. Persistent: 1 + 6 = 7 RTT.</p></details>
+<details><summary>HTTP/2 multiplexes streams. Why does it still suffer from head-of-line blocking?</summary><p>All streams share one TCP connection. TCP delivers bytes in order, so one lost segment holds back every stream until it is re-sent. That is TCP-level HoL blocking.</p></details>
+<details><summary>How does HTTP/3 remove HoL blocking?</summary><p>It runs on QUIC over UDP. QUIC handles each stream independently, so a lost packet delays only the stream it belongs to.</p></details>
+<details><summary>Which HTTP method would a REST API use to update an existing order?</summary><p>PUT (for example <code>PUT /orders/17</code>).</p></details>
+<details><summary>Give one advantage and one disadvantage of P2P over client–server.</summary><p>Advantage: self-scaling and no central server to fail or pay for. Disadvantage: harder to manage and secure; availability depends on peers that come and go.</p></details>
+</div>
+
+<p class="watch" data-topics="client-server-p2p http-basics http-versions rest-api"><a class="search" href="https://www.youtube.com/results?search_query=HTTP+1.1+vs+HTTP+2+vs+HTTP+3+explained">Search YouTube: HTTP/1.1 vs HTTP/2 vs HTTP/3</a></p>
+</section>
+
+<!-- ============================================================ L6 -->
+<section class="lec" id="l6">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 6</span></p>
+  <h2>Lecture 6 — HTTPS and the TLS handshake</h2>
+  <p class="oneline">HTTPS is ordinary HTTP sent through an encrypted tunnel called TLS, so nobody in between can read it, change it, or pretend to be the website.</p>
+</header>
+
+<h3>Why HTTP is not enough</h3>
+<p>HTTP sends everything as <strong>plain text</strong>. Anyone who can capture the traffic (someone on the same café WiFi, your ISP) can read your password and see exactly what you send and receive.</p>
+<div class="formula">HTTPS = HTTP + TLS</div>
+<p><strong>TLS</strong> (Transport Layer Security) is the protocol that does the encrypting. Its older name was <strong>SSL</strong> (Secure Sockets Layer); people still say "SSL certificate" out of habit.</p>
+<div class="box note" data-t="The padlock question (from class)">
+<p>What does the 🔒 in the browser mean?</p>
+<ul>
+<li>Safe website? <strong>✗ No.</strong> A scam site can have a padlock too.</li>
+<li>Encrypted connection? <strong>✓ Yes.</strong></li>
+<li>Verified identity (you really are talking to that domain)? <strong>✓ Yes.</strong></li>
+</ul>
+</div>
+
+<h3 id="l6-goals">The three goals</h3>
+<p><strong>Cryptography</strong> is the practice of turning readable text (<strong>plaintext</strong>) into unreadable code (<strong>ciphertext</strong>) and back.</p>
+<div class="tw"><table>
+<thead><tr><th>Goal</th><th>Meaning</th><th>Short form</th></tr></thead>
+<tbody>
+<tr><th>Confidentiality</th><td>Only the intended parties can read the data</td><td>No eavesdropping</td></tr>
+<tr><th>Integrity</th><td>The data has not been changed on the way</td><td>No tampering</td></tr>
+<tr><th>Authentication</th><td>You are really talking to who you think you are</td><td>Verified identity</td></tr>
+</tbody></table></div>
+
+<h3 id="l6-enc">Symmetric vs asymmetric encryption</h3>
+<p><strong>Encryption</strong> scrambles data using a <strong>key</strong>. <strong>Decryption</strong> unscrambles it.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>Symmetric</th><th>Asymmetric (public-key)</th></tr></thead>
+<tbody>
+<tr><th>Keys</th><td><strong>One</strong> shared secret key. The same key locks and unlocks.</td><td>A <strong>pair</strong>: a <strong>public key</strong> (give it to everyone) and a <strong>private key</strong> (never leaves the owner). What one locks, only the other unlocks.</td></tr>
+<tr><th>Speed</th><td>Fast</td><td>Slow (heavy maths)</td></tr>
+<tr><th>Problem</th><td><strong>How do two strangers share the key safely?</strong> If you send it over the network, an eavesdropper gets it too.</td><td>Too slow to encrypt all the data</td></tr>
+<tr><th>Examples</th><td>AES, ChaCha20</td><td>RSA, Diffie–Hellman / ECDHE</td></tr>
+<tr><th>Analogy</th><td>One house key that both of you need a copy of</td><td>A letterbox: anyone can drop a letter in (public), only the owner's key opens it (private)</td></tr>
+</tbody></table></div>
+<div class="box exam" data-t="Key insight of TLS — use both">
+<p><strong>Asymmetric</strong> is used briefly at the start to agree on a secret safely. <strong>Symmetric</strong> is then used for all the actual data, because it is fast.</p>
+<p>Why not only symmetric? Strangers cannot securely share a key. Why not only asymmetric? Too slow. So TLS uses asymmetric to <strong>bootstrap</strong> a symmetric <strong>session key</strong>.</p>
+</div>
+
+<h3 id="l6-cert">Certificates and the chain of trust</h3>
+<p>Encryption alone does not help if you are encrypting to the wrong party. How do you know the public key really belongs to <code>microsoft.com</code> and not to a look-alike such as <code>micrоsоft.com</code> (with Cyrillic "о" letters)?</p>
+<p>A <strong>certificate</strong> is a digital ID card. It says: "this <strong>domain name</strong> owns this <strong>public key</strong>", and it is <strong>digitally signed by a Certificate Authority (CA)</strong>, a company that browsers trust (DigiCert, Let's Encrypt, Amazon).</p>
+<p>A certificate contains: the domain name, the public key, who issued it, the validity dates, and the CA's signature.</p>
+<figure>
+<div class="flow">
+  <div class="node v"><b>Root CA</b><small>pre-installed in your browser / OS</small></div>
+  <div class="arr">→<small>signs</small></div>
+  <div class="node"><b>Intermediate CA</b><small>does the daily issuing</small></div>
+  <div class="arr">→<small>signs</small></div>
+  <div class="node g"><b>Leaf certificate</b><small>the website's own: amazon.com</small></div>
+</div>
+<figcaption>Chain of trust: leaf → intermediate → root. Your browser checks each signature up the chain until it reaches a root it already trusts.</figcaption>
+</figure>
+<p>The browser validates a certificate by checking: Is the chain signed correctly up to a trusted root? Does the name match the site I asked for? Is it within its dates? Has it been revoked? If any check fails, you see the "Your connection is not private" warning.</p>
+
+<h3 id="l6-handshake">The TLS handshake</h3>
+<p>The handshake happens after the TCP connection is open and before any HTTP is sent.</p>
+<div class="ladder">
+  <div class="ends"><span>Client (browser)</span><span>Server (website)</span></div>
+  <div class="lines">
+    <div class="msg r"><b>1. ClientHello</b><small>"I speak TLS 1.3 or 1.2. Here are the cipher suites I support, and a random number."</small></div>
+    <div class="msg l"><b>2. ServerHello + Certificate</b><small>"From your list, we will use this cipher. Here is my certificate (public key + CA signature)."</small></div>
+    <div class="gap">3. Authentication — client validates the certificate chain</div>
+    <div class="msg r"><b>4. Key exchange</b><small>both sides derive the same shared session key</small></div>
+    <div class="msg l"><b>5. Finished</b><small>both confirm the handshake was not tampered with</small></div>
+    <div class="gap ok">🔒 Symmetric encryption begins — HTTP data flows</div>
+  </div>
+</div>
+<div class="tw"><table>
+<thead><tr><th>Step</th><th>What happens</th><th>Why</th></tr></thead>
+<tbody>
+<tr><th>1. ClientHello</th><td>Client offers the TLS versions and <strong>cipher suites</strong> (bundles of algorithms) it supports, plus a random number (a <strong>nonce</strong>, "number used once", 32 bytes)</td><td>Start the negotiation</td></tr>
+<tr><th>2. ServerHello + Certificate</th><td>Server picks one cipher suite and sends its certificate</td><td>Agree on algorithms; present identity</td></tr>
+<tr><th>3. Authentication</th><td>Client validates the certificate chain. If it fails, the browser shows "not secure".</td><td><strong>Stops the man-in-the-middle</strong></td></tr>
+<tr><th>4. Key exchange</th><td>Client and server use asymmetric cryptography to derive a shared <strong>session key</strong> that never travels on the wire</td><td>Get a symmetric key safely</td></tr>
+<tr><th>5. Finished</th><td>Both switch to symmetric encryption using the session key</td><td>Fast, encrypted application data</td></tr>
+</tbody></table></div>
+
+<h4>TLS 1.3 is about 1 round trip</h4>
+<p>Older TLS 1.2 needed 2 round trips before data could flow. <strong>TLS 1.3</strong> packs the key-exchange material into the Hello messages, so the handshake takes about <strong>1 RTT</strong>. A returning visitor can even send data with <strong>0 RTT</strong>.</p>
+<div class="tw"><table>
+<thead><tr><th>Stack</th><th>Round trips before the first HTTP request</th></tr></thead>
+<tbody>
+<tr><td>HTTPS over TCP + TLS 1.2</td><td>1 (TCP) + 2 (TLS) = 3 RTT</td></tr>
+<tr><td>HTTPS over TCP + TLS 1.3</td><td>1 (TCP) + 1 (TLS) = 2 RTT</td></tr>
+<tr><td>HTTP/3 (QUIC, TLS 1.3 built in)</td><td><strong>1 RTT</strong>, or 0 RTT for a repeat visit</td></tr>
+</tbody></table></div>
+<p>This is the link to HTTP/3's fast setup: QUIC merges the transport handshake and the TLS 1.3 handshake into one.</p>
+
+<h3 id="l6-mitm">Man-in-the-middle (MITM) attack</h3>
+<p>An attacker sits between you and the server, relays messages both ways, and reads or changes them. To you they pretend to be the server; to the server they pretend to be you.</p>
+<figure>
+<div class="flow">
+  <div class="node a"><b>You</b></div>
+  <div class="arr">⇄</div>
+  <div class="node r"><b>Attacker</b><small>pretends to be the bank</small></div>
+  <div class="arr">⇄</div>
+  <div class="node g"><b>Real bank server</b></div>
+</div>
+</figure>
+<p><strong>How TLS defeats it:</strong> the attacker must present a certificate for <code>bank.com</code>. They cannot get one signed by a trusted CA, because CAs only issue to the real domain owner. And they cannot reuse the bank's real certificate, because they do not have the matching private key. So <strong>certificate validation fails</strong> and your browser warns you.</p>
+
+<aside class="box aws" data-t="AWS mirror — AWS Certificate Manager (ACM)">
+<ul>
+<li><strong>ACM</strong> issues public TLS certificates for free and <strong>renews them automatically</strong>. No manual installing or expiry reminders.</li>
+<li>You attach the certificate to a <strong>load balancer</strong> (or CloudFront), not to each server.</li>
+<li><strong>TLS termination:</strong> the load balancer does the TLS handshake and decryption. Clients speak HTTPS to the load balancer; the load balancer can speak plain HTTP to the servers behind it inside the private network.</li>
+</ul>
+<div class="flow">
+  <div class="node a"><b>Client</b></div>
+  <div class="arr">→<small>HTTPS</small></div>
+  <div class="node o"><b>ALB + ACM certificate</b><small>TLS ends here</small></div>
+  <div class="arr">→<small>HTTP</small></div>
+  <div class="node g"><b>Backend servers</b></div>
+</div>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>What are the three security goals of TLS?</summary><p>Confidentiality (no eavesdropping), integrity (no tampering), authentication (verified identity).</p></details>
+<details><summary>Why does TLS use both asymmetric and symmetric encryption?</summary><p>Symmetric is fast but needs a shared key, and strangers cannot share one safely. Asymmetric solves the sharing but is slow. So TLS uses asymmetric once to establish a symmetric session key, then uses symmetric for the data.</p></details>
+<details><summary>What does a certificate bind together, and who signs it?</summary><p>It binds a domain name to a public key. It is signed by a Certificate Authority (CA).</p></details>
+<details><summary>Write the chain of trust in order.</summary><p>Leaf (the site's certificate) → Intermediate CA → Root CA (trusted by the browser/OS).</p></details>
+<details><summary>List the TLS handshake steps.</summary><p>ClientHello → ServerHello + Certificate → Authentication (certificate validation) → Key exchange → Finished, then symmetric encryption begins.</p></details>
+<details><summary>Which handshake step defeats a man-in-the-middle attack, and why?</summary><p>Certificate validation. The attacker cannot present a certificate for the real domain signed by a trusted CA with a matching private key.</p></details>
+<details><summary>Does the padlock mean the website is safe?</summary><p>No. It means the connection is encrypted and the server's identity for that domain is verified. A phishing site can also have a valid certificate for its own domain.</p></details>
+<details><summary>What is TLS termination?</summary><p>Ending the TLS connection at a load balancer: it handles the handshake and decryption (using an ACM certificate) and forwards the request to the backend servers.</p></details>
+</div>
+
+<p class="watch" data-topics="https-tls encryption certificates"><a class="search" href="https://www.youtube.com/results?search_query=TLS+handshake+explained+HTTPS">Search YouTube: TLS handshake explained</a></p>
+</section>
+
+<!-- ============================================================ L7 -->
+<section class="lec" id="l7">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 7</span><span class="tag warn">No class PDF — written from syllabus + textbook</span></p>
+  <h2>Lecture 7 — DNS: the Internet's phone book, and AWS Route 53</h2>
+  <p class="oneline">Computers find each other by number (IP address), people remember names. DNS is the system that turns a name like amazon.com into its number.</p>
+</header>
+<div class="box note" data-t="About this section">
+<p>The DNS lecture file was not in the class folder. This section follows the syllabus bullets, the DNS recap slides shown at the start of Lecture 9, and the course textbook (Kurose &amp; Ross, section 2.4). If your instructor used different examples, add them here.</p>
+</div>
+
+<h3>What DNS does</h3>
+<p><strong>DNS</strong> = Domain Name System. It translates <strong>names → IP addresses</strong>, like a phone book turns a person's name into a phone number.</p>
+<ul>
+<li>DNS runs <strong>first</strong>, before the TCP handshake and before TLS. Your browser cannot connect to a name; it needs the IP address.</li>
+<li>It is a <strong>distributed database</strong>: no single computer holds all names. The data is spread over many servers arranged in a hierarchy.</li>
+<li>DNS is an application-layer protocol that normally uses <strong>UDP port 53</strong> (one small question, one small answer, so no need for a connection).</li>
+</ul>
+
+<h3 id="l7-hierarchy">The hierarchy</h3>
+<p>Read a domain name from right to left: <code>www.amazon.com</code> → <code>.com</code> → <code>amazon</code> → <code>www</code>.</p>
+<figure>
+<div class="svgw"><svg viewBox="0 0 680 222" role="img" aria-label="DNS hierarchy: root, top-level domain servers, authoritative servers">
+  <g class="ln2">
+    <path d="M310 46L130 90M310 46L310 90M310 46L480 90"/>
+    <path d="M130 126L70 170M130 126L192 170M310 126L310 170M480 126L480 170"/>
+  </g>
+  <rect class="ndv" x="240" y="14" width="140" height="32" rx="8"/><text class="t" x="310" y="35" text-anchor="middle" font-weight="700">Root servers  " . "</text>
+  <rect class="nd" x="70" y="90" width="120" height="36" rx="8"/><text class="t" x="130" y="113" text-anchor="middle">.com TLD</text>
+  <rect class="nd" x="250" y="90" width="120" height="36" rx="8"/><text class="t" x="310" y="113" text-anchor="middle">.org TLD</text>
+  <rect class="nd" x="420" y="90" width="120" height="36" rx="8"/><text class="t" x="480" y="113" text-anchor="middle">.in TLD</text>
+  <rect class="ndg" x="14" y="170" width="112" height="36" rx="8"/><text class="t" x="70" y="193" text-anchor="middle">amazon.com</text>
+  <rect class="ndg" x="136" y="170" width="112" height="36" rx="8"/><text class="t" x="192" y="193" text-anchor="middle">google.com</text>
+  <rect class="ndg" x="254" y="170" width="112" height="36" rx="8"/><text class="t" x="310" y="193" text-anchor="middle">wikipedia.org</text>
+  <rect class="ndg" x="424" y="170" width="112" height="36" rx="8"/><text class="t" x="480" y="193" text-anchor="middle">iitd.ac.in</text>
+  <text class="tm" x="672" y="35" text-anchor="end">Root</text>
+  <text class="tm" x="672" y="113" text-anchor="end">TLD</text>
+  <text class="tm" x="672" y="193" text-anchor="end">Authoritative</text>
+</svg></div>
+</figure>
+<div class="tw"><table>
+<thead><tr><th>Level</th><th>What it knows</th><th>What it answers</th></tr></thead>
+<tbody>
+<tr><th>Root servers</th><td>Where the TLD servers are</td><td>"I don't know amazon.com, but here are the <code>.com</code> servers."</td></tr>
+<tr><th>TLD servers<br><span class="small muted">(Top-Level Domain: .com, .org, .in)</span></th><td>Which authoritative servers handle each domain under that TLD</td><td>"I don't know www.amazon.com, but here are amazon.com's name servers."</td></tr>
+<tr><th>Authoritative name servers</th><td>The actual records for one domain. Run by the domain's owner or their DNS provider (e.g. Route 53).</td><td>"www.amazon.com is at 205.251.242.103." This is the final answer.</td></tr>
+</tbody></table></div>
+<p>One more player, outside the hierarchy: the <strong>recursive resolver</strong> (also called the local DNS server). It is run by your ISP or a public service (Google <code>8.8.8.8</code>, Cloudflare <code>1.1.1.1</code>). Your device asks it, and it does the searching for you.</p>
+
+<h3 id="l7-resolution">How a lookup works</h3>
+<p>You type <code>www.amazon.com</code>. Assume nothing is cached.</p>
+<figure>
+<div class="svgw"><svg viewBox="0 0 680 262" role="img" aria-label="DNS resolution: client asks resolver; resolver asks root, TLD, and authoritative servers in turn">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="pt" d="M0 0L10 5L0 10z"/></marker></defs>
+  <rect class="nd" x="14" y="100" width="124" height="60" rx="10"/><text class="t" x="76" y="126" text-anchor="middle" font-weight="700">Your laptop</text><text class="tm" x="76" y="144" text-anchor="middle">(client)</text>
+  <rect class="ndo" x="250" y="100" width="150" height="60" rx="10"/><text class="t" x="325" y="126" text-anchor="middle" font-weight="700">Recursive resolver</text><text class="tm" x="325" y="144" text-anchor="middle">ISP or 8.8.8.8</text>
+  <rect class="ndv" x="510" y="14" width="156" height="50" rx="10"/><text class="t" x="588" y="44" text-anchor="middle" font-weight="700">Root server</text>
+  <rect class="nd" x="510" y="105" width="156" height="50" rx="10"/><text class="t" x="588" y="135" text-anchor="middle" font-weight="700">.com TLD server</text>
+  <rect class="ndg" x="510" y="196" width="156" height="50" rx="10"/><text class="t" x="588" y="220" text-anchor="middle" font-weight="700">Authoritative</text><text class="tm" x="588" y="237" text-anchor="middle">amazon.com</text>
+  <g class="ln2" marker-end="url(#ah)">
+    <path d="M138 120L248 120"/><path d="M250 142L140 142"/>
+    <path d="M400 108L508 36"/><path d="M510 50L402 120"/>
+    <path d="M400 124L508 124"/><path d="M510 140L402 140"/>
+    <path d="M400 148L508 216"/><path d="M510 232L396 158"/>
+  </g>
+  <circle class="num" cx="170" cy="106" r="9"/><text class="numt" x="170" y="110" text-anchor="middle">1</text><text class="ta" x="184" y="110">ask</text>
+  <circle class="num" cx="160" cy="158" r="9"/><text class="numt" x="160" y="162" text-anchor="middle">8</text><text class="tg" x="174" y="162">answer</text>
+  <circle class="num" cx="440" cy="58" r="9"/><text class="numt" x="440" y="62" text-anchor="middle">2</text>
+  <circle class="num" cx="476" cy="96" r="9"/><text class="numt" x="476" y="100" text-anchor="middle">3</text>
+  <circle class="num" cx="432" cy="112" r="9"/><text class="numt" x="432" y="116" text-anchor="middle">4</text>
+  <circle class="num" cx="432" cy="153" r="9"/><text class="numt" x="432" y="157" text-anchor="middle">5</text>
+  <circle class="num" cx="476" cy="170" r="9"/><text class="numt" x="476" y="174" text-anchor="middle">6</text>
+  <circle class="num" cx="436" cy="208" r="9"/><text class="numt" x="436" y="212" text-anchor="middle">7</text>
+</svg></div>
+</figure>
+<ol class="steps">
+<li>Your laptop asks the <strong>recursive resolver</strong>: "What is the IP of www.amazon.com?"</li>
+<li>The resolver asks a <strong>root server</strong>.</li>
+<li>Root replies with a <strong>referral</strong>: "Ask the <code>.com</code> TLD servers; here are their addresses."</li>
+<li>The resolver asks a <strong>.com TLD server</strong>.</li>
+<li>TLD replies with a referral: "Ask amazon.com's authoritative servers; here they are."</li>
+<li>The resolver asks the <strong>authoritative server</strong> for amazon.com.</li>
+<li>The authoritative server replies with the <strong>answer</strong>: the IP address.</li>
+<li>The resolver returns the IP to your laptop and <strong>caches</strong> it. Now the browser can start the TCP handshake.</li>
+</ol>
+
+<h4>Recursive vs iterative</h4>
+<div class="tw"><table>
+<thead><tr><th></th><th>Recursive query</th><th>Iterative query</th></tr></thead>
+<tbody>
+<tr><th>Meaning</th><td>"Get me the final answer. You do the legwork."</td><td>"Tell me the answer if you know it. Otherwise tell me who to ask next."</td></tr>
+<tr><th>Reply</th><td>The final IP address (or an error)</td><td>A <strong>referral</strong> to another server</td></tr>
+<tr><th>Who does the work</th><td>The server that was asked</td><td>The one asking</td></tr>
+<tr><th>In the picture</th><td>Steps ① and ⑧: laptop ↔ resolver</td><td>Steps ②–⑦: resolver ↔ root, TLD, authoritative</td></tr>
+</tbody></table></div>
+<div class="box analogy" data-t="Analogy">
+<p><strong>Recursive:</strong> you ask a receptionist for someone's desk number, and they make all the phone calls and come back with the answer. <strong>Iterative:</strong> each person you ask says "not me, try the second floor", and you walk there yourself.</p>
+</div>
+
+<h3 id="l7-records">DNS record types</h3>
+<p>A DNS server stores <strong>resource records</strong>. Each has a name, a type, a value, and a TTL.</p>
+<div class="tw"><table>
+<thead><tr><th>Type</th><th>Maps</th><th>Example</th></tr></thead>
+<tbody>
+<tr><th>A</th><td>Name → <strong>IPv4</strong> address</td><td><code>example.com → 93.184.216.34</code></td></tr>
+<tr><th>AAAA</th><td>Name → <strong>IPv6</strong> address ("quad-A": an IPv6 address is 4× as long)</td><td><code>example.com → 2606:2800:220:1:…</code></td></tr>
+<tr><th>CNAME</th><td>Name → <strong>another name</strong> (an alias; "canonical name")</td><td><code>www.example.com → example.com</code></td></tr>
+<tr><th>MX</th><td>Domain → its <strong>mail server</strong> (Mail eXchange), with a priority number</td><td><code>example.com → 10 mail.example.com</code></td></tr>
+<tr><th>NS</th><td>Domain → its <strong>authoritative name servers</strong></td><td><code>example.com → ns1.example.com</code></td></tr>
+<tr><th>TXT</th><td>Domain → free text; used to prove domain ownership and for email anti-spam rules (SPF, DKIM)</td><td><code>"v=spf1 include:_spf.google.com ~all"</code></td></tr>
+</tbody></table></div>
+<div class="box warn" data-t="Don't confuse — A vs CNAME">
+<p>An <strong>A</strong> record points to an <strong>IP address</strong>. A <strong>CNAME</strong> points to <strong>another name</strong>, which must then be looked up again. A CNAME cannot be placed at the bare domain (<code>example.com</code>), only on sub-names like <code>www</code>.</p>
+</div>
+
+<h3 id="l7-cache">Caching and TTL</h3>
+<p>If every lookup went through all eight steps, the Internet would be slow and the root servers would melt. So answers are <strong>cached</strong> (remembered) at several places: your browser, your operating system, and the recursive resolver.</p>
+<p>Every record carries a <strong>TTL</strong> (Time To Live): the number of seconds a cache may keep it. A TTL of 300 means "you may reuse this answer for 5 minutes, then ask again".</p>
+<div class="box example" data-t="Why DNS changes &quot;propagate slowly&quot;">
+<p>You move your website to a new server and update the A record. Your authoritative server gives the new IP immediately. But resolvers all over the world still hold the <strong>old</strong> answer in cache until its TTL runs out. If the TTL was 86,400 seconds, some users are sent to the old server for up to 24 hours.</p>
+<p><strong>Trade-off:</strong> a long TTL means fewer lookups and faster browsing but slow changes. A short TTL means fast changes but more queries. Tip: lower the TTL a day before a planned move.</p>
+</div>
+<pre><code><span class="c"># try it</span>
+nslookup newtonschool.co
+dig www.amazon.com          <span class="c"># shows the record type and the remaining TTL</span>
+dig +trace www.amazon.com   <span class="c"># shows root → TLD → authoritative, step by step</span></code></pre>
+
+<aside class="box aws" data-t="AWS mirror — Route 53">
+<p><strong>Route 53</strong> is AWS's managed DNS service (53 is the DNS port). You create a <strong>hosted zone</strong> for your domain and put records in it. Route 53 then acts as the authoritative name server.</p>
+<p>A <strong>routing policy</strong> decides which answer Route 53 gives when one name has several possible targets:</p>
+<div class="tw"><table>
+<thead><tr><th>Policy</th><th>What it does</th><th>Use it when</th></tr></thead>
+<tbody>
+<tr><th>Simple</th><td>One name → one answer. No logic.</td><td>You have a single server</td></tr>
+<tr><th>Weighted</th><td>Splits traffic by weights you set (e.g. 90% / 10%)</td><td>Testing a new version on a small share of users</td></tr>
+<tr><th>Latency-based</th><td>Sends each user to the Region that gives them the lowest latency</td><td>The app runs in several Regions and you want speed</td></tr>
+<tr><th>Failover</th><td>Sends everyone to the primary; switches to a standby if a <strong>health check</strong> fails</td><td>Disaster recovery (active–passive)</td></tr>
+<tr><th>Geolocation</th><td>Chooses by the user's <strong>location</strong> (country or continent)</td><td>Local language content, legal restrictions</td></tr>
+</tbody></table></div>
+<div class="box warn" data-t="Don't confuse — latency vs geolocation">
+<p><strong>Latency-based</strong> picks the <em>fastest</em> Region for the user, which is not always the nearest. <strong>Geolocation</strong> picks by <em>where the user is</em>, even if another Region would be faster.</p>
+</div>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Why must DNS run before the TCP handshake?</summary><p>TCP connects to an IP address, not a name. DNS provides the IP address for the name the user typed.</p></details>
+<details><summary>Name the three levels of the DNS hierarchy and what each returns for www.amazon.com.</summary><p>Root: the addresses of the .com TLD servers. TLD: the addresses of amazon.com's authoritative servers. Authoritative: the IP address of www.amazon.com.</p></details>
+<details><summary>What is the difference between a recursive and an iterative query?</summary><p>Recursive: the server asked must return the final answer, doing all further lookups itself. Iterative: the server returns either the answer or a referral to the next server, and the asker continues.</p></details>
+<details><summary>Which record would you create to: (a) point a name to 13.233.5.10, (b) make <code>blog.site.com</code> an alias of <code>site.com</code>, (c) say where email for the domain goes?</summary><p>(a) A record. (b) CNAME record. (c) MX record.</p></details>
+<details><summary>What is a TTL, and what happens if it is very long?</summary><p>The number of seconds a cached DNS answer may be reused. A very long TTL reduces queries but makes DNS changes take a long time to reach all users.</p></details>
+<details><summary>You run the app in Mumbai and Virginia and want each user sent to whichever responds faster. Which Route 53 policy?</summary><p>Latency-based routing.</p></details>
+<details><summary>You want a standby site to take over automatically when the main site is down. Which policy?</summary><p>Failover routing (with a health check on the primary).</p></details>
+<details><summary>Which transport protocol and port does DNS normally use?</summary><p>UDP, port 53.</p></details>
+</div>
+
+<p class="watch" data-topics="dns dns-records route53"><a class="search" href="https://www.youtube.com/results?search_query=how+DNS+works+recursive+vs+iterative+explained">Search YouTube: how DNS works</a></p>
+</section>
+
+<!-- ============================================================ L8 -->
+<section class="lec" id="l8">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 8</span></p>
+  <h2>Lecture 8 — Email protocols (SMTP, POP3, IMAP), CDNs and caching</h2>
+  <p class="oneline">Email uses one protocol to send and another to read. Caching and CDNs make the web fast by keeping copies of content close to the user.</p>
+</header>
+
+<h3 id="l8-email">How email travels</h3>
+<p>Three kinds of component:</p>
+<ul>
+<li><strong>Mail User Agent (MUA)</strong>: the app you read and write mail in (Gmail app, Outlook).</li>
+<li><strong>Mail Transfer Agent (MTA)</strong>: a <strong>mail server</strong> that moves mail between servers.</li>
+<li><strong>Mailbox</strong>: where your incoming mail is stored on your mail server.</li>
+</ul>
+<figure>
+<div class="flow">
+  <div class="node a"><b>Alice's mail app</b><small>MUA</small></div>
+  <div class="arr">→<small>SMTP</small></div>
+  <div class="node"><b>Alice's mail server</b><small>MTA</small></div>
+  <div class="arr">→<small>SMTP</small></div>
+  <div class="node"><b>Bob's mail server</b><small>MTA + Bob's mailbox</small></div>
+  <div class="arr">→<small>POP3 or IMAP</small></div>
+  <div class="node g"><b>Bob's mail app</b><small>MUA</small></div>
+</div>
+<figcaption>SMTP <em>pushes</em> mail forward. POP3 or IMAP <em>pulls</em> it down to the reader.</figcaption>
+</figure>
+<ol>
+<li>Alice's mail app connects to her mail server using <strong>SMTP</strong> and hands over the message.</li>
+<li>Her server uses <strong>SMTP</strong> again to push the message to Bob's mail server. (It finds that server by a DNS <strong>MX</strong> lookup.)</li>
+<li>The message waits in Bob's mailbox.</li>
+<li>Bob's mail app fetches it using <strong>POP3</strong> or <strong>IMAP</strong>.</li>
+</ol>
+
+<h4>SMTP — Simple Mail Transfer Protocol</h4>
+<ul>
+<li><strong>Sends</strong> email: from client to server, and from server to server.</li>
+<li>It is a <strong>push</strong> protocol: the sender starts the transfer.</li>
+<li>Uses TCP. Ports: <strong>25</strong> (server to server), <strong>587</strong> (your app submitting mail, with encryption), 465 (older encrypted port).</li>
+<li>Real world: SendGrid, Mailchimp, Mailgun are SMTP relay services that apps use to send mail.</li>
+</ul>
+<h4>POP3 — Post Office Protocol version 3</h4>
+<ul>
+<li><strong>Downloads</strong> mail to your device and then <strong>deletes it from the server</strong>.</li>
+<li>One-way: server → client.</li>
+<li>Good for offline reading on one device. Bad for several devices, because nothing is synced.</li>
+<li>Port <strong>110</strong>; secure version (POP3S) <strong>995</strong>.</li>
+</ul>
+<h4>IMAP — Internet Message Access Protocol</h4>
+<ul>
+<li>Mail <strong>stays on the server</strong>; your app views and manages it there.</li>
+<li>Two-way sync: mark as read, move to a folder, or delete on your phone, and your laptop shows the same.</li>
+<li>Supports folders (Inbox, Sent, Drafts) and partial downloads (headers first).</li>
+<li>Port <strong>143</strong>; secure version (IMAPS) <strong>993</strong>.</li>
+</ul>
+
+<div class="box exam" data-t="The table to memorise">
+<div class="tw"><table>
+<thead><tr><th></th><th>SMTP</th><th>POP3</th><th>IMAP</th></tr></thead>
+<tbody>
+<tr><th>Job</th><td>Send mail</td><td>Retrieve mail</td><td>Retrieve mail</td></tr>
+<tr><th>Direction</th><td>Push</td><td>Pull, one-way (server → client)</td><td>Pull, two-way sync</td></tr>
+<tr><th>Where mail lives after reading</th><td>—</td><td>On your device only (deleted from server)</td><td>On the server</td></tr>
+<tr><th>Several devices?</th><td>—</td><td>Poor</td><td>Yes, all in sync</td></tr>
+<tr><th>Ports</th><td>25 / 587 (465)</td><td>110 (995 secure)</td><td>143 (993 secure)</td></tr>
+<tr><th>Transport</th><td colspan="3">All use TCP (email must arrive complete)</td></tr>
+</tbody></table></div>
+</div>
+
+<h3 id="l8-cache">Web caching</h3>
+<p><strong>Caching</strong> means storing a copy of data in a fast, nearby place so that the next request for the same data is answered quickly, without going back to the original, slower source.</p>
+<ul>
+<li><strong>Cache hit</strong>: the copy is in the cache. Serve it immediately.</li>
+<li><strong>Cache miss</strong>: not in the cache. Fetch from the original server (the <strong>origin</strong>), store a copy, then serve.</li>
+</ul>
+<p>There are layers of caching between you and the origin:</p>
+<figure>
+<div class="flow">
+  <div class="node a"><b>Browser cache</b><small>on your device, only for you</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>Proxy cache</b><small>at an office or ISP, shared</small></div>
+  <div class="arr">→</div>
+  <div class="node o"><b>CDN cache</b><small>edge servers worldwide</small></div>
+  <div class="arr">→</div>
+  <div class="node g"><b>Origin server</b><small>the real source</small></div>
+</div>
+<figcaption>A request is answered by the first layer that has a fresh copy.</figcaption>
+</figure>
+
+<h4>Cache-Control: how long is a copy fresh?</h4>
+<p>The server tells caches what they may do using the <code>Cache-Control</code> response header.</p>
+<pre><code>Cache-Control: public, max-age=3600</code></pre>
+<ul>
+<li><code>max-age=3600</code>: this copy is fresh for 3,600 seconds (1 hour). During that hour the browser uses it <strong>without contacting the server at all</strong>.</li>
+<li><code>public</code>: any cache (browser, proxy, CDN) may store it. <code>private</code>: only the user's own browser may. <code>no-store</code>: never cache (bank pages).</li>
+</ul>
+
+<h4>ETag: is my old copy still correct?</h4>
+<p>When the copy has expired, the browser does not have to download the whole file again. It can ask "has it changed?". This is called <strong>revalidation</strong> or a <strong>conditional GET</strong>.</p>
+<ul>
+<li>An <strong>ETag</strong> is a version label (a fingerprint) the server attaches to a file, e.g. <code>ETag: "abc123"</code>.</li>
+<li>Later the browser sends <code>If-None-Match: "abc123"</code>, meaning "send the file only if its tag is no longer abc123".</li>
+<li>If unchanged, the server replies <strong><code>304 Not Modified</code></strong> with <strong>no body</strong>. The browser reuses its copy. Small and fast.</li>
+<li>If changed, the server replies <code>200 OK</code> with the new file and a new ETag.</li>
+</ul>
+<div class="ladder">
+  <div class="ends"><span>Browser</span><span>Server</span></div>
+  <div class="lines">
+    <div class="msg r"><b>GET /logo.png</b></div>
+    <div class="msg l"><b>200 OK</b> + file<small>Cache-Control: max-age=3600 · ETag: "abc123"</small></div>
+    <div class="gap">within 1 hour → served from cache, no request at all</div>
+    <div class="gap">after 1 hour → copy is stale, revalidate</div>
+    <div class="msg r"><b>GET /logo.png</b><small>If-None-Match: "abc123"</small></div>
+    <div class="msg l g"><b>304 Not Modified</b><small>no body — keep using your copy</small></div>
+  </div>
+</div>
+
+<h3 id="l8-cdn">Content Delivery Networks (CDNs)</h3>
+<div class="box analogy" data-t="Class analogy — a chain of grocery stores">
+<p>Instead of travelling to faraway farms, shoppers visit a local store. The local stores stock food from the distant farms. A CDN does the same for web content: it keeps copies close to users, so pages load in milliseconds instead of crossing the world.</p>
+</div>
+<p>A <strong>CDN</strong> is a set of geographically distributed servers, called <strong>edge servers</strong>, that cache content near users.</p>
+<ol>
+<li>A user requests content (a video, an image).</li>
+<li>The <strong>nearest edge server</strong> answers instead of the origin.</li>
+<li>If the edge does not have it (cache miss), it fetches it from the origin, caches it, and serves it.</li>
+</ol>
+<p><strong>Benefits:</strong> lower latency (shorter distance, so less propagation delay), less bandwidth and load on the origin, and better availability (if one edge fails, another serves).</p>
+
+<h4>Pull vs push caching</h4>
+<div class="tw"><table>
+<thead><tr><th></th><th>Pull CDN</th><th>Push CDN</th></tr></thead>
+<tbody>
+<tr><th>How content gets to the edge</th><td>The edge <strong>fetches it from the origin the first time</strong> a user asks</td><td>You <strong>upload it to the edges in advance</strong></td></tr>
+<tr><th>First request</th><td>Slow (a cache miss)</td><td>Fast (already there)</td></tr>
+<tr><th>Effort</th><td>Low: automatic</td><td>Higher: you manage what is where</td></tr>
+<tr><th>Good for</th><td>Websites with lots of ordinary content</td><td>Large files known in advance: a film release, a game update</td></tr>
+</tbody></table></div>
+
+<h4>How does the user reach the <em>nearest</em> edge? DNS-based steering</h4>
+<p>The website's name is a CNAME pointing to the CDN's name. When your resolver asks the CDN's DNS server, that server looks at where the question came from and replies with the <strong>IP address of an edge server near you</strong>. Users in Delhi and London ask for the same name and receive different IP addresses.</p>
+
+<p><strong>Facts from class:</strong></p>
+<ul>
+<li>CDNs appeared in the late 1990s; <strong>Akamai</strong> pioneered them in 1998.</li>
+<li>Major CDNs: Akamai, Cloudflare, Amazon CloudFront, Google Cloud CDN, Azure CDN, Fastly.</li>
+<li><strong>Netflix Open Connect:</strong> Netflix puts its own storage appliances inside ISPs' buildings. One appliance holds up to 350 TB.</li>
+<li><strong>Fastly outage, June 2021:</strong> one misconfiguration at Fastly took down Reddit, Amazon, The New York Times and others. It showed how much of the web depends on a few CDNs.</li>
+</ul>
+
+<aside class="box aws" data-t="AWS mirror — CloudFront and Edge Locations">
+<ul>
+<li><strong>CloudFront</strong> is AWS's CDN. Its edge servers sit in <strong>Edge Locations</strong>, which are far more numerous than Regions.</li>
+<li>You set an <strong>origin</strong> (an S3 bucket, an EC2 server, or a load balancer). CloudFront works as a pull CDN: the first request to an edge is fetched from the origin and cached.</li>
+<li>How long the edge keeps a copy follows the origin's <code>Cache-Control</code> header or the TTL you set.</li>
+</ul>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Which protocol sends email, and which two retrieve it?</summary><p>SMTP sends (push). POP3 and IMAP retrieve.</p></details>
+<details><summary>You read email on a phone and a laptop and want both to show the same folders and read status. POP3 or IMAP? Why?</summary><p>IMAP. Mail stays on the server and changes sync to every device. POP3 downloads to one device and deletes from the server.</p></details>
+<details><summary>Give the port numbers for SMTP, POP3, and IMAP.</summary><p>SMTP 25 (and 587 for submission). POP3 110 (995 secure). IMAP 143 (993 secure).</p></details>
+<details><summary>What is the difference between a cache hit and a cache miss?</summary><p>Hit: the cache already has a valid copy and serves it. Miss: it does not, so the request goes to the origin and the result is stored.</p></details>
+<details><summary>What does <code>Cache-Control: public, max-age=600</code> mean?</summary><p>Any cache may store the response, and it is fresh for 600 seconds (10 minutes).</p></details>
+<details><summary>A browser sends <code>If-None-Match: "v7"</code> and the file has not changed. What does the server reply?</summary><p><code>304 Not Modified</code>, with no body. The browser reuses its cached copy.</p></details>
+<details><summary>How does a CDN reduce delay? Link it to Lecture 2.</summary><p>It serves content from an edge server near the user, which shortens the distance d, so propagation delay d/s falls. It also takes load off the origin.</p></details>
+<details><summary>Pull CDN vs push CDN in one line each.</summary><p>Pull: the edge fetches from the origin on the first request. Push: you upload content to the edges beforehand.</p></details>
+</div>
+
+<p class="watch" data-topics="email caching-cdn cloudfront"><a class="search" href="https://www.youtube.com/results?search_query=SMTP+POP3+IMAP+explained">Search YouTube: SMTP vs POP3 vs IMAP</a></p>
+</section>
+
+<div class="pager"><a href="01-how-internet-works.html">← How the Internet works</a><a href="03-transport-layer.html">Next: Transport layer →</a></div>
+
+</main>
+</div>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>

@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4 · IP Addressing and Subnetting — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="On this page"></nav>
+<main>
+
+<p class="tags"><span class="tag mid">Lecture 13 in mid-sem</span><span class="tag after">Lectures 14–16 after mid-sem</span><span class="tag">Weeks 7–8</span></p>
+<h1>Addressing the World: IP, Subnetting, NAT, and Diagnostics</h1>
+<p class="lede">Every device needs an address. This part is mostly small calculations with powers of 2. Once the method clicks, these are the easiest marks in the paper.</p>
+
+<div class="box note" data-t="What is in the mid-sem from this page">
+<p><strong>Lecture 13</strong> (IPv4, classes, CIDR) is on the mid-sem lecture list. The course plan says the mid-sem "covers Weeks 1–6", which would stop before this lecture, so <strong>confirm with your instructor</strong>. The mid-sem quick-reference sheet also lists three facts from later lectures: subnets from borrowed bits (2<sup>k</sup>), AWS usable hosts (2<sup>32−n</sup> − 5), and the DHCP sequence (DORA). Each is marked below with <span class="tag warn">On the quick-reference sheet</span>.</p>
+</div>
+
+<!-- ============================================================ L13 -->
+<section class="lec" id="l13">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 13</span><span class="tag warn">Numericals likely</span></p>
+  <h2>Lecture 13 — IPv4 addressing, classful history, and CIDR</h2>
+  <p class="oneline">An IPv4 address is 32 bits split into two parts: the first part names the network, the rest names one device on it. CIDR lets you put that split wherever you need.</p>
+</header>
+
+<h3>What is an IP address?</h3>
+<p>An <strong>IP address</strong> is a unique identifier given to each device on the Internet or a local network. "IP" stands for <strong>Internet Protocol</strong>, the set of rules for sending data between devices on networks.</p>
+<div class="box analogy" data-t="Class analogy">
+<p>Think of an IPv4 address as a four-part postal code: <code>[Country].[State].[City].[Street number]</code>. The left part gets you to the right area; the right part finds the exact house.</p>
+</div>
+
+<h3 id="l13-format">The format: 32 bits, dotted decimal</h3>
+<ul>
+<li>An IPv4 address is a <strong>32-bit</strong> number.</li>
+<li>It is written as <strong>four 8-bit numbers</strong> (called <strong>octets</strong>) separated by dots: <code>192.168.1.10</code>. This is <strong>dotted-decimal</strong> notation.</li>
+<li>Each octet is 8 bits, so it ranges from <strong>0 to 255</strong>.</li>
+<li>Total possible addresses: 2<sup>32</sup> ≈ <strong>4.3 billion</strong>.</li>
+</ul>
+<div class="bits" data-ip="192.168.1.10" data-n="24">11000000 . 10101000 . 00000001 . 00001010</div>
+<div class="key"><span><i class="n"></i>network portion (here the first 24 bits)</span><span><i class="h"></i>host portion (the last 8 bits)</span></div>
+
+<h4>Decimal ↔ binary in 20 seconds</h4>
+<p>The 8 bit positions in an octet are worth:</p>
+<div class="tw"><table>
+<thead><tr><th>Bit position</th><th class="num">1st</th><th class="num">2nd</th><th class="num">3rd</th><th class="num">4th</th><th class="num">5th</th><th class="num">6th</th><th class="num">7th</th><th class="num">8th</th></tr></thead>
+<tbody><tr><th>Value</th><td class="num">128</td><td class="num">64</td><td class="num">32</td><td class="num">16</td><td class="num">8</td><td class="num">4</td><td class="num">2</td><td class="num">1</td></tr></tbody>
+</table></div>
+<div class="box example" data-t="Worked example">
+<p><strong>168 → binary:</strong> take the values that fit, left to right. 168 − 128 = 40 → 1. 64 does not fit → 0. 40 − 32 = 8 → 1. 16 no → 0. 8 − 8 = 0 → 1. Rest 0. Result: <code>10101000</code>.</p>
+<p><strong><code>11000000</code> → decimal:</strong> 128 + 64 = <strong>192</strong>.</p>
+</div>
+
+<h4>Network portion + host portion</h4>
+<p>Every IP address has two parts:</p>
+<ul>
+<li>The <strong>network portion</strong> (network ID): the same for every device on that network. Routers use this part to reach the right network.</li>
+<li>The <strong>host portion</strong> (host ID): different for each device on the network.</li>
+</ul>
+<p>Example from class: in <code>172.16.1.10</code> (a class B address), <code>172.16</code> is the network ID and <code>1.10</code> is the host ID. The whole question of this lecture is: <strong>where is the dividing line?</strong></p>
+
+<h3 id="l13-classful">Classful addressing (history)</h3>
+<p>Originally the dividing line could be in only three places, fixed by the first few bits of the address.</p>
+<div class="box analogy" data-t="Class analogy — the city model">
+<p>A city divided into three zones: <strong>A</strong> = massive districts for giant developments, <strong>B</strong> = medium districts for mid-sized projects, <strong>C</strong> = small plots for local use.</p>
+</div>
+<div class="tw"><table>
+<thead><tr><th>Class</th><th>First bits</th><th>First octet</th><th>Network / host bits</th><th>Default mask</th><th>Networks</th><th>Hosts per network</th></tr></thead>
+<tbody>
+<tr><th>A</th><td><code>0</code></td><td>0–127</td><td>8 / 24</td><td>255.0.0.0 (/8)</td><td>~128</td><td>~16.7 million</td></tr>
+<tr><th>B</th><td><code>10</code></td><td>128–191</td><td>16 / 16</td><td>255.255.0.0 (/16)</td><td>~16,000</td><td>~65,000</td></tr>
+<tr><th>C</th><td><code>110</code></td><td>192–223</td><td>24 / 8</td><td>255.255.255.0 (/24)</td><td>~2 million</td><td>254</td></tr>
+<tr><th>D</th><td><code>1110</code></td><td>224–239</td><td colspan="4">Multicast (one sender to a group). Not for normal hosts.</td></tr>
+<tr><th>E</th><td><code>1111</code></td><td>240–255</td><td colspan="4">Reserved / experimental.</td></tr>
+</tbody></table></div>
+<p>Bit layout (N = network bit, H = host bit):</p>
+<pre><code>Class A  <span class="hl">0</span>NNNNNNN.HHHHHHHH.HHHHHHHH.HHHHHHHH   <span class="c">1 class bit + 7 network + 24 host</span>
+Class B  <span class="hl">10</span>NNNNNN.NNNNNNNN.HHHHHHHH.HHHHHHHH   <span class="c">2 class bits + 14 network + 16 host</span>
+Class C  <span class="hl">110</span>NNNNN.NNNNNNNN.NNNNNNNN.HHHHHHHH   <span class="c">3 class bits + 21 network + 8 host</span></code></pre>
+<div class="box example" data-t="Find the class from the first octet">
+<p><code>10.4.5.6</code> → first octet 10 is in 0–127 → <strong>Class A</strong>.<br>
+<code>172.16.1.10</code> → 172 is in 128–191 → <strong>Class B</strong>.<br>
+<code>192.168.1.1</code> → 192 is in 192–223 → <strong>Class C</strong>.</p>
+</div>
+
+<h4>Why classful addressing was abandoned</h4>
+<ul>
+<li><strong>Wasted address space.</strong> The jump between sizes is enormous: 254 → 65,534 → 16.7 million. A company needing <strong>500</strong> addresses could not use a Class C (too small, 254). It had to take a Class B with over 65,000 addresses and <strong>waste the rest</strong>.</li>
+<li><strong>Networks too big to manage.</strong> A flat Class A network has 16,777,216 addresses: far too many devices for one router.</li>
+<li><strong>The Internet grew faster than anyone predicted.</strong> Addresses were running out. In 2025 a public IPv4 address costs roughly $20–$45 to buy.</li>
+</ul>
+<p><strong>The fix: make addressing classless.</strong></p>
+
+<h3 id="l13-cidr">CIDR — Classless Inter-Domain Routing</h3>
+<p>CIDR (say "cider") replaces the A/B/C system. The dividing line between network and host can be placed after <strong>any</strong> number of bits, so a network can be sized to what is actually needed.</p>
+<div class="formula">a.b.c.d / n<small>a normal IP address, a slash, then the <b>prefix length n</b> = how many of the 32 bits are the network portion</small></div>
+<p>Example: <code>192.168.0.1/24</code> means the first 24 bits are the network portion and the remaining 32 − 24 = 8 bits are the host portion.</p>
+
+<h4>The subnet mask</h4>
+<p>The <strong>subnet mask</strong> is the same information as the prefix, written in dotted-decimal form: <strong>1s for the network bits, 0s for the host bits</strong>.</p>
+<pre><code>/24  →  11111111.11111111.11111111.00000000  →  255.255.255.0
+/26  →  11111111.11111111.11111111.11000000  →  255.255.255.192
+/20  →  11111111.11111111.11110000.00000000  →  255.255.240.0</code></pre>
+<div class="tw"><table>
+<thead><tr><th>Prefix</th><th>Subnet mask</th><th class="num">Host bits</th><th class="num">Total addresses</th><th class="num">Usable hosts</th></tr></thead>
+<tbody>
+<tr><td>/8</td><td>255.0.0.0</td><td class="num">24</td><td class="num">16,777,216</td><td class="num">16,777,214</td></tr>
+<tr><td>/12</td><td>255.240.0.0</td><td class="num">20</td><td class="num">1,048,576</td><td class="num">1,048,574</td></tr>
+<tr><td>/16</td><td>255.255.0.0</td><td class="num">16</td><td class="num">65,536</td><td class="num">65,534</td></tr>
+<tr><td>/20</td><td>255.255.240.0</td><td class="num">12</td><td class="num">4,096</td><td class="num">4,094</td></tr>
+<tr><td>/22</td><td>255.255.252.0</td><td class="num">10</td><td class="num">1,024</td><td class="num">1,022</td></tr>
+<tr><td>/23</td><td>255.255.254.0</td><td class="num">9</td><td class="num">512</td><td class="num">510</td></tr>
+<tr><td>/24</td><td>255.255.255.0</td><td class="num">8</td><td class="num">256</td><td class="num">254</td></tr>
+<tr><td>/25</td><td>255.255.255.128</td><td class="num">7</td><td class="num">128</td><td class="num">126</td></tr>
+<tr><td>/26</td><td>255.255.255.192</td><td class="num">6</td><td class="num">64</td><td class="num">62</td></tr>
+<tr><td>/27</td><td>255.255.255.224</td><td class="num">5</td><td class="num">32</td><td class="num">30</td></tr>
+<tr><td>/28</td><td>255.255.255.240</td><td class="num">4</td><td class="num">16</td><td class="num">14</td></tr>
+<tr><td>/30</td><td>255.255.255.252</td><td class="num">2</td><td class="num">4</td><td class="num">2</td></tr>
+<tr><td>/32</td><td>255.255.255.255</td><td class="num">0</td><td class="num">1</td><td class="num">a single host</td></tr>
+</tbody></table></div>
+<p class="small muted">The only values a mask octet can take: 0, 128, 192, 224, 240, 248, 252, 254, 255 (that is 0 to 8 leading 1-bits).</p>
+
+<h3 id="l13-hosts">Usable hosts = 2<sup>(32 − n)</sup> − 2</h3>
+<div class="formula">usable hosts = 2<sup>h</sup> − 2    where h = host bits = 32 − n</div>
+<p>With h host bits there are 2<sup>h</sup> different combinations. Two of them cannot be given to a device:</p>
+<ul>
+<li><strong>All host bits 0</strong> = the <strong>network address</strong> (the name of the network itself, e.g. <code>192.168.1.0</code>).</li>
+<li><strong>All host bits 1</strong> = the <strong>broadcast address</strong> (means "everyone on this network", e.g. <code>192.168.1.255</code>).</li>
+</ul>
+<div class="box example" data-t="Worked example (from class)">
+<p><code>192.168.1.0/24</code>: host bits = 32 − 24 = 8. Usable hosts = 2⁸ − 2 = 256 − 2 = <strong>254</strong>.</p>
+<p>Network address <code>192.168.1.0</code>, first usable <code>192.168.1.1</code>, last usable <code>192.168.1.254</code>, broadcast <code>192.168.1.255</code>.</p>
+</div>
+
+<h4>CIDR examples (table from class)</h4>
+<div class="tw"><table>
+<thead><tr><th>CIDR</th><th>Network address</th><th>Subnet mask</th><th>First usable</th><th>Last usable</th><th class="num">Usable hosts</th><th>Use case</th></tr></thead>
+<tbody>
+<tr><td>10.0.0.0/8</td><td>10.0.0.0</td><td>255.0.0.0</td><td>10.0.0.1</td><td>10.255.255.254</td><td class="num">16,777,214</td><td>Large enterprise</td></tr>
+<tr><td>172.16.0.0/12</td><td>172.16.0.0</td><td>255.240.0.0</td><td>172.16.0.1</td><td>172.31.255.254</td><td class="num">1,048,574</td><td>Medium enterprise</td></tr>
+<tr><td>192.168.0.0/16</td><td>192.168.0.0</td><td>255.255.0.0</td><td>192.168.0.1</td><td>192.168.255.254</td><td class="num">65,534</td><td>Large home/office</td></tr>
+<tr><td>192.168.1.0/24</td><td>192.168.1.0</td><td>255.255.255.0</td><td>192.168.1.1</td><td>192.168.1.254</td><td class="num">254</td><td>Standard home/small office</td></tr>
+<tr><td>192.168.1.0/25</td><td>192.168.1.0</td><td>255.255.255.128</td><td>192.168.1.1</td><td>192.168.1.126</td><td class="num">126</td><td>Small office subnets</td></tr>
+<tr><td>192.168.1.0/26</td><td>192.168.1.0</td><td>255.255.255.192</td><td>192.168.1.1</td><td>192.168.1.62</td><td class="num">62</td><td>Department networks</td></tr>
+<tr><td>192.168.1.0/27</td><td>192.168.1.0</td><td>255.255.255.224</td><td>192.168.1.1</td><td>192.168.1.30</td><td class="num">30</td><td>Small team networks</td></tr>
+<tr><td>192.168.1.100/32</td><td>192.168.1.100</td><td>255.255.255.255</td><td colspan="2">192.168.1.100 only</td><td class="num">1</td><td>A single host</td></tr>
+</tbody></table></div>
+
+<h3 id="l13-find">Given any address/prefix: find network, broadcast, and range</h3>
+<p>A method that works every time, without writing out binary.</p>
+<ol class="steps">
+<li><strong>Find the "interesting" octet</strong>: the one where the mask is neither 255 nor 0. (/25–/30 → 4th octet. /17–/23 → 3rd octet. /9–/15 → 2nd.)</li>
+<li><strong>Block size = 256 − mask value in that octet.</strong> (Class calls this the <em>magic number</em>.) Networks start at multiples of the block size.</li>
+<li><strong>Network address</strong>: round the interesting octet <em>down</em> to a multiple of the block size; set all octets to its right to 0.</li>
+<li><strong>Broadcast address</strong>: interesting octet = network value + block size − 1; set all octets to its right to 255.</li>
+<li><strong>Usable range</strong>: network + 1 up to broadcast − 1.</li>
+</ol>
+<div class="box example" data-t="Worked example 1 — 192.168.1.130/26">
+<p>Mask for /26 = 255.255.255.<strong>192</strong> → interesting octet is the 4th. Block size = 256 − 192 = <strong>64</strong>. Blocks start at 0, 64, 128, 192.</p>
+<p>130 falls in the block starting at <strong>128</strong>.</p>
+<p>Network = <code>192.168.1.128</code> · Broadcast = 128 + 64 − 1 = <code>192.168.1.191</code> · Usable = <code>192.168.1.129 – 192.168.1.190</code> · Hosts = 2⁶ − 2 = <strong>62</strong>.</p>
+</div>
+<div class="box example" data-t="Worked example 2 — 172.16.5.200/22">
+<p>Mask for /22 = 255.255.<strong>252</strong>.0 → interesting octet is the 3rd. Block size = 256 − 252 = <strong>4</strong>. Blocks: 0, 4, 8, 12…</p>
+<p>The 3rd octet is 5, which falls in the block starting at <strong>4</strong>.</p>
+<p>Network = <code>172.16.4.0</code> · Broadcast = <code>172.16.7.255</code> (4 + 4 − 1 = 7, then 255) · Usable = <code>172.16.4.1 – 172.16.7.254</code> · Hosts = 2¹⁰ − 2 = <strong>1,022</strong>.</p>
+</div>
+
+<h3 id="l13-size">Sizing a prefix for a host requirement</h3>
+<p>The reverse question: "I need N devices in one network. What prefix do I ask for?"</p>
+<ol class="steps">
+<li>Find the smallest h such that <strong>2<sup>h</sup> − 2 ≥ N</strong>. (Round N + 2 up to the next power of 2.)</li>
+<li>Prefix n = <strong>32 − h</strong>.</li>
+</ol>
+<div class="tw"><table>
+<thead><tr><th class="num">h (host bits)</th><th class="num">2<sup>h</sup></th><th class="num">Usable (2<sup>h</sup> − 2)</th><th>Prefix</th></tr></thead>
+<tbody>
+<tr><td class="num">2</td><td class="num">4</td><td class="num">2</td><td>/30</td></tr>
+<tr><td class="num">3</td><td class="num">8</td><td class="num">6</td><td>/29</td></tr>
+<tr><td class="num">4</td><td class="num">16</td><td class="num">14</td><td>/28</td></tr>
+<tr><td class="num">5</td><td class="num">32</td><td class="num">30</td><td>/27</td></tr>
+<tr><td class="num">6</td><td class="num">64</td><td class="num">62</td><td>/26</td></tr>
+<tr><td class="num">7</td><td class="num">128</td><td class="num">126</td><td>/25</td></tr>
+<tr><td class="num">8</td><td class="num">256</td><td class="num">254</td><td>/24</td></tr>
+<tr><td class="num">9</td><td class="num">512</td><td class="num">510</td><td>/23</td></tr>
+<tr><td class="num">10</td><td class="num">1,024</td><td class="num">1,022</td><td>/22</td></tr>
+<tr><td class="num">11</td><td class="num">2,048</td><td class="num">2,046</td><td>/21</td></tr>
+<tr><td class="num">12</td><td class="num">4,096</td><td class="num">4,094</td><td>/20</td></tr>
+</tbody></table></div>
+<div class="box example" data-t="Worked example (from class) — a subnet for 500 devices">
+<p>Need 2<sup>h</sup> − 2 ≥ 500. Try h = 7 → 126. h = 8 → 254. Not enough. <strong>h = 9 → 510. Enough.</strong></p>
+<p>Network bits = 32 − 9 = 23 → ask for a <strong>/23</strong>. It gives 512 addresses, 510 usable.</p>
+<p>A /24 (like <code>192.168.1.0/24</code>) has only 8 host bits = 254 usable, which is not enough. Moving the line one bit left to /23 doubles the size.</p>
+<div class="bits" data-ip="255.255.254.0" data-n="23">23 network bits · 9 host bits</div>
+<div class="key"><span><i class="n"></i>23 network bits</span><span><i class="h"></i>9 host bits</span></div>
+</div>
+<div class="box example" data-t="More practice">
+<p>50 hosts → 52 → next power of 2 is 64 = 2⁶ → <strong>/26</strong> (62 usable).<br>
+100 hosts → 128 = 2⁷ → <strong>/25</strong> (126 usable).<br>
+1,000 hosts → 1,024 = 2¹⁰ → <strong>/22</strong> (1,022 usable).<br>
+254 hosts → 256 = 2⁸ → <strong>/24</strong> (exactly 254). 255 hosts → needs <strong>/23</strong>.</p>
+</div>
+<div class="box warn" data-t="Common mistakes">
+<ul>
+<li>Forgetting the <strong>− 2</strong>. A /26 has 64 addresses but only <strong>62</strong> usable.</li>
+<li>Mixing the two directions: a <strong>bigger</strong> prefix number means a <strong>smaller</strong> network. /28 is smaller than /24.</li>
+<li>Rounding down. 60 hosts fits in /26 (62). 63 hosts does not; it needs /25.</li>
+</ul>
+</div>
+
+<h3 id="l13-private">Private address ranges (RFC 1918)</h3>
+<p><strong>Private IP addresses</strong> are for use inside local networks (homes, offices, VPCs). They are <strong>not routable on the public Internet</strong>, so the <strong>same range can be reused</strong> in every network. Your laptop at home may be <code>192.168.1.10</code>, and a student in another city may also be <code>192.168.1.10</code>. Both are valid because they are in separate private networks.</p>
+<div class="box exam" data-t="Memorise these three">
+<div class="tw"><table>
+<thead><tr><th>Range (CIDR)</th><th>From – to</th><th class="num">Addresses</th><th>Old class</th></tr></thead>
+<tbody>
+<tr><th>10.0.0.0/8</th><td>10.0.0.0 – 10.255.255.255</td><td class="num">16,777,216</td><td>A</td></tr>
+<tr><th>172.16.0.0/12</th><td>172.16.0.0 – 172.31.255.255</td><td class="num">1,048,576</td><td>B</td></tr>
+<tr><th>192.168.0.0/16</th><td>192.168.0.0 – 192.168.255.255</td><td class="num">65,536</td><td>C</td></tr>
+</tbody></table></div>
+<p class="small">Watch the middle one: it is 172.<strong>16</strong> to 172.<strong>31</strong>, not all of 172.x. So 172.20.5.1 is private; 172.40.5.1 is public.</p>
+</div>
+<p>A device with a private address reaches the Internet through <strong>NAT</strong>, which swaps the private address for a public one (<a href="#l15">Lecture 15</a>). Two more special addresses: <code>127.0.0.1</code> is <strong>loopback</strong> ("this computer itself"), and <code>0.0.0.0/0</code> means "every address" (used as the default route).</p>
+
+<aside class="box aws" data-t="AWS mirror — VPC CIDR blocks use the same maths">
+<p>When you create a VPC you give it a CIDR block, usually from a private range. Subnets carve that block into smaller pieces.</p>
+<div class="nest vpc"><span class="cap">VPC 10.0.0.0/16 — host bits = 16 → 2¹⁶ = 65,536 addresses</span>
+  <div class="grid2">
+    <div class="nest pub"><span class="cap">Subnet 10.0.1.0/24</span><span class="chip">host bits = 8 → 256 addresses</span></div>
+    <div class="nest pub"><span class="cap">Subnet 10.0.2.0/24</span><span class="chip">256 addresses</span></div>
+  </div>
+</div>
+<p>From the class demo in the console: the lab VPC is <code>10.0.0.0/16</code>, with subnets such as <code>10.0.0.0/20</code> and <code>10.0.144.0/20</code>. A /20 has 2¹² = 4,096 addresses, and the console shows <strong>4,091 available</strong>, because AWS keeps 5 for itself (see <a href="#l14-aws5">Lecture 14</a>).</p>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>How many bits are in an IPv4 address, and how many addresses does that allow?</summary><p>32 bits; 2³² ≈ 4.3 billion addresses.</p></details>
+<details><summary>Which class is 150.10.20.30, and what is its default mask?</summary><p>150 is in 128–191 → Class B → 255.255.0.0 (/16).</p></details>
+<details><summary>Why was classful addressing abandoned?</summary><p>It wasted addresses. Only three network sizes existed, so an organisation needing 500 addresses had to take a Class B with 65,000 and waste most of them. With the Internet's fast growth, addresses were running out.</p></details>
+<details><summary>Write the subnet mask for /27.</summary><p>255.255.255.224 (27 ones: three full octets + 3 bits = 128 + 64 + 32 = 224).</p></details>
+<details><summary>How many usable hosts are in a /28? In a /21?</summary><p>/28: 2⁴ − 2 = 14. /21: 2¹¹ − 2 = 2,046.</p></details>
+<details><summary>For 192.168.10.77/27, find the network address, broadcast address, and usable range.</summary><p>Mask .224, block size 32. Blocks: 0, 32, 64, 96… 77 is in the 64 block. Network 192.168.10.64, broadcast 192.168.10.95, usable 192.168.10.65 – 192.168.10.94 (30 hosts).</p></details>
+<details><summary>For 10.0.144.0/20, what is the last address in the block?</summary><p>Mask 255.255.240.0, block size 16 in the 3rd octet. 144 is a multiple of 16, so the block runs 144–159. Last address (broadcast): 10.0.159.255.</p></details>
+<details><summary>You need a network for 300 devices. What prefix?</summary><p>2⁹ − 2 = 510 ≥ 300 (2⁸ − 2 = 254 is too small). h = 9 → /23.</p></details>
+<details><summary>Which of these are private: 10.200.1.1, 172.32.0.1, 192.168.255.9, 172.31.4.4?</summary><p>Private: 10.200.1.1, 192.168.255.9, 172.31.4.4. Public: 172.32.0.1 (the private range ends at 172.31).</p></details>
+<details><summary>Why subtract 2 when counting usable hosts?</summary><p>The all-zeros host address is the network address and the all-ones host address is the broadcast address. Neither can be assigned to a device.</p></details>
+</div>
+
+<p class="watch" data-topics="ipv4-classes cidr"><a class="search" href="https://www.youtube.com/results?search_query=CIDR+notation+and+subnet+mask+explained+for+beginners">Search YouTube: CIDR notation and subnet masks</a></p>
+</section>
+
+<!-- ============================================================ L14 -->
+<section class="lec" id="l14">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Lecture 14</span><span class="tag warn">Two formulas on the quick-reference sheet</span></p>
+  <h2>Lecture 14 — Subnetting in practice, and designing an AWS VPC</h2>
+  <p class="oneline">Subnetting cuts one big network into smaller ones by moving the network/host line to the right: each borrowed bit doubles the number of subnets and halves their size.</p>
+</header>
+
+<h3 id="l14-borrow">Borrowing host bits</h3>
+<p>One large network is hard to manage and to secure. <strong>Subnetting</strong> means splitting it into smaller networks (<strong>subnets</strong>). We do it by <strong>borrowing bits from the host part</strong> and using them as extra network bits.</p>
+<div class="formula">borrow k host bits → 2<sup>k</sup> subnets,   each with 2<sup>(host bits left)</sup> − 2 usable hosts</div>
+<p><span class="tag warn">On the quick-reference sheet</span> Subnets from borrowed bits = <strong>2<sup>k</sup></strong>.</p>
+<div class="box example" data-t="Worked example (from class) — 10.0.0.0/24 into four /26s">
+<p><code>10.0.0.0/24</code> has 24 network bits and 8 host bits. We want 4 subnets. 2<sup>k</sup> = 4 → borrow <strong>k = 2</strong> bits. New prefix = 24 + 2 = <strong>/26</strong>. Host bits left = 6 → 2⁶ − 2 = 62 usable hosts each.</p>
+<div class="bits" data-ip="10.0.0.192" data-n="24" data-s="2">24 network bits · 2 borrowed bits · 6 host bits</div>
+<div class="key"><span><i class="n"></i>original network bits (24)</span><span><i class="s"></i>borrowed bits (2) → 4 subnets</span><span><i class="h"></i>host bits left (6)</span></div>
+<p><strong>Magic-number shortcut:</strong> the /26 mask is 255.255.255.192. Magic number = 256 − 192 = <strong>64</strong>. So the subnets start at .0, .64, .128, .192.</p>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Subnet</th><th>Usable range</th><th>Broadcast</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>10.0.0.0/26</td><td>10.0.0.1 – 10.0.0.62</td><td>10.0.0.63</td></tr>
+<tr><td>2</td><td>10.0.0.64/26</td><td>10.0.0.65 – 10.0.0.126</td><td>10.0.0.127</td></tr>
+<tr><td>3</td><td>10.0.0.128/26</td><td>10.0.0.129 – 10.0.0.190</td><td>10.0.0.191</td></tr>
+<tr><td>4</td><td>10.0.0.192/26</td><td>10.0.0.193 – 10.0.0.254</td><td>10.0.0.255</td></tr>
+</tbody></table></div>
+</div>
+
+<h3 id="l14-pubpriv">Public vs private subnets</h3>
+<p>Not every subnet should face the Internet.</p>
+<ul>
+<li>A subnet is <strong>public</strong> because its route table has a path to the <strong>Internet Gateway</strong>: <code>0.0.0.0/0 → IGW</code>.</li>
+<li>A subnet is <strong>private</strong> if its route table does <strong>not</strong> send <code>0.0.0.0/0</code> to the Internet Gateway. It can still reach out through a <strong>NAT Gateway</strong>.</li>
+</ul>
+<p>Public subnet → route table → IGW → Internet. Private subnet → route table → NAT → Internet (outbound only).</p>
+
+<h4>The 3-tier architecture</h4>
+<div class="tw"><table>
+<thead><tr><th>Tier</th><th>Subnet type</th><th>What lives there</th></tr></thead>
+<tbody>
+<tr><th>Web tier</th><td>Public</td><td>Load balancer / web servers: the controlled entry point</td></tr>
+<tr><th>App tier</th><td>Private</td><td>Application logic, internal services</td></tr>
+<tr><th>Database tier</th><td>Private</td><td>Databases, corporate data</td></tr>
+</tbody></table></div>
+<p><strong>Public entry, private data.</strong> Only the web tier is reachable from outside. For availability, <strong>repeat the same tiers across at least 2 Availability Zones</strong>.</p>
+<figure>
+<div class="nest vpc"><span class="cap">VPC 10.0.0.0/16</span>
+  <div class="grid2">
+    <div class="nest az"><span class="cap">AZ a</span>
+      <div class="nest pub"><span class="cap">Public · web</span><span class="chip">10.0.1.0/24</span></div>
+      <div class="nest priv"><span class="cap">Private · app</span><span class="chip">10.0.11.0/24</span></div>
+      <div class="nest priv" style="margin:0"><span class="cap">Private · database</span><span class="chip">10.0.21.0/24</span></div>
+    </div>
+    <div class="nest az"><span class="cap">AZ b</span>
+      <div class="nest pub"><span class="cap">Public · web</span><span class="chip">10.0.2.0/24</span></div>
+      <div class="nest priv"><span class="cap">Private · app</span><span class="chip">10.0.12.0/24</span></div>
+      <div class="nest priv" style="margin:0"><span class="cap">Private · database</span><span class="chip">10.0.22.0/24</span></div>
+    </div>
+  </div>
+</div>
+<figcaption>A 3-tier design in two AZs: six subnets, none overlapping, all inside the VPC's /16.</figcaption>
+</figure>
+
+<h3 id="l14-aws5">AWS reserves 5 IPs per subnet</h3>
+<p><span class="tag warn">On the quick-reference sheet</span></p>
+<div class="formula">AWS usable hosts = 2<sup>(32 − n)</sup> − 5</div>
+<p>Normal subnetting loses 2 addresses. In AWS every subnet loses <strong>5</strong>:</p>
+<div class="tw"><table>
+<thead><tr><th>Address (in 10.0.1.0/24)</th><th>Reserved for</th></tr></thead>
+<tbody>
+<tr><td>10.0.1.0</td><td>Network address</td></tr>
+<tr><td>10.0.1.1</td><td>The VPC router</td></tr>
+<tr><td>10.0.1.2</td><td>AWS DNS</td></tr>
+<tr><td>10.0.1.3</td><td>Reserved for future use</td></tr>
+<tr><td>10.0.1.255</td><td>Broadcast address (AWS does not support broadcast, but keeps it reserved)</td></tr>
+</tbody></table></div>
+<div class="tw"><table>
+<thead><tr><th>Prefix</th><th class="num">Total</th><th class="num">Traditional usable (− 2)</th><th class="num">AWS usable (− 5)</th></tr></thead>
+<tbody>
+<tr><td>/24</td><td class="num">256</td><td class="num">254</td><td class="num"><strong>251</strong></td></tr>
+<tr><td>/26</td><td class="num">64</td><td class="num">62</td><td class="num"><strong>59</strong></td></tr>
+<tr><td>/20</td><td class="num">4,096</td><td class="num">4,094</td><td class="num"><strong>4,091</strong></td></tr>
+<tr><td>/28</td><td class="num">16</td><td class="num">14</td><td class="num"><strong>11</strong></td></tr>
+</tbody></table></div>
+
+<h4>AWS size limits and subnet rules</h4>
+<ul>
+<li>A VPC or subnet IPv4 block must be between <strong>/16</strong> (largest) and <strong>/28</strong> (smallest). You cannot create a /29 or /30.</li>
+<li><strong>Subnets cannot overlap.</strong> <code>10.0.1.0/24</code> and <code>10.0.1.128/25</code> share addresses → not allowed.</li>
+<li><strong>A subnet must fit inside the VPC's CIDR.</strong> In VPC <code>10.0.0.0/16</code>, <code>10.0.2.0/24</code> is valid; <code>10.1.0.0/16</code> is not.</li>
+<li><strong>You cannot change a subnet's size after creating it.</strong> If it is wrong, create a new subnet and move the resources. Plan the size up front.</li>
+</ul>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>You borrow 3 bits from 192.168.5.0/24. How many subnets, what prefix, how many usable hosts each?</summary><p>2³ = 8 subnets, each /27, with 2⁵ − 2 = 30 usable hosts.</p></details>
+<details><summary>List the subnets when 172.16.0.0/24 is split into /25s.</summary><p>Block size 128: 172.16.0.0/25 (hosts .1–.126, broadcast .127) and 172.16.0.128/25 (hosts .129–.254, broadcast .255).</p></details>
+<details><summary>How many IPs can you actually use in an AWS /27 subnet?</summary><p>32 − 5 = 27.</p></details>
+<details><summary>What makes a subnet public in AWS?</summary><p>Its route table has a route <code>0.0.0.0/0</code> → Internet Gateway.</p></details>
+<details><summary>In a 3-tier app, which tiers go in private subnets, and why?</summary><p>The app tier and database tier. They hold logic and data that should never be directly reachable from the Internet.</p></details>
+<details><summary>Can an AWS VPC contain subnets 10.0.0.0/24 and 10.0.0.128/26?</summary><p>No. 10.0.0.128/26 (.128–.191) lies inside 10.0.0.0/24 (.0–.255); they overlap.</p></details>
+</div>
+
+<p class="watch" data-topics="subnetting vpc-subnets-nat"><a class="search" href="https://www.youtube.com/results?search_query=subnetting+explained+step+by+step">Search YouTube: subnetting step by step</a></p>
+</section>
+
+<!-- ============================================================ L15 -->
+<section class="lec" id="l15">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Lecture 15</span><span class="tag warn">DORA is on the quick-reference sheet</span></p>
+  <h2>Lecture 15 — NAT, PAT, DHCP, and VPC routing</h2>
+  <p class="oneline">NAT lets many private devices share one public address, DHCP hands out addresses automatically, and the route table decides where every packet goes next.</p>
+</header>
+
+<h3 id="l15-nat">NAT — Network Address Translation</h3>
+<p>The puzzle from class: private addresses cannot be reached from the Internet, yet your phone on home WiFi has a private IP and loads every website. How?</p>
+<p><strong>NAT</strong> rewrites addresses at the border of the network (in your router).</p>
+<ul>
+<li><strong>On the way out:</strong> the router swaps the private <strong>source</strong> IP for its own public IP.</li>
+<li><strong>On the way back:</strong> it reverses the swap, restoring the private IP as the destination.</li>
+<li>The reply finds its way home only because the router <strong>remembers the swap</strong> in a translation table.</li>
+</ul>
+
+<h3 id="l15-pat">PAT — Port Address Translation</h3>
+<p>Ten devices at home are streaming, scrolling, and gaming at once through a <strong>single</strong> public IP. How does the router know which reply belongs to which device?</p>
+<p><strong>PAT</strong> adds the <strong>port number</strong> to the translation, not just the IP. Each connection gets the same public IP but a <strong>different public port</strong>. This is exactly what your home router does every second. (PAT is also called NAT overload; when people say "NAT" they usually mean PAT.)</p>
+<div class="tw"><table>
+<thead><tr><th>Inside (private)</th><th>Outside (public)</th><th>Destination</th></tr></thead>
+<tbody>
+<tr><td>192.168.1.20 : <strong>51000</strong></td><td>203.0.113.7 : <strong>40001</strong></td><td>93.184.216.34 : 443</td></tr>
+<tr><td>192.168.1.21 : <strong>51000</strong></td><td>203.0.113.7 : <strong>40002</strong></td><td>93.184.216.34 : 443</td></tr>
+<tr><td>192.168.1.35 : 49876</td><td>203.0.113.7 : <strong>40003</strong></td><td>142.250.72.14 : 443</td></tr>
+</tbody></table></div>
+<p>Two hosts happened to use the same inside port 51000. The <strong>outside port</strong> is the key that routes each reply home: a reply to port 40001 goes to .20, a reply to 40002 goes to .21. Every mapping must be unique.</p>
+<div class="two">
+<div class="box example" data-t="What we gain">
+<ul><li>Conserves scarce public IPv4 addresses.</li><li>Hides internal hosts: a security side-effect.</li></ul>
+</div>
+<div class="box warn" data-t="What we break">
+<ul><li>End-to-end reachability is gone: outsiders cannot start a connection to an inside host.</li><li>Inbound connections need explicit setup (port forwarding).</li></ul>
+</div>
+</div>
+<div class="tw"><table>
+<thead><tr><th></th><th>NAT (basic)</th><th>PAT</th></tr></thead>
+<tbody>
+<tr><th>Translates</th><td>IP address only</td><td>IP address <strong>and port</strong></td></tr>
+<tr><th>Mapping</th><td>One private IP ↔ one public IP</td><td>Many private IPs ↔ one public IP</td></tr>
+<tr><th>Public IPs needed</th><td>One per active device</td><td>One for everyone</td></tr>
+</tbody></table></div>
+
+<h3 id="l15-dhcp">DHCP — Dynamic Host Configuration Protocol</h3>
+<p>Nobody types IP settings by hand. When a device joins a network, <strong>DHCP</strong> configures it automatically. One DHCP <strong>lease</strong> delivers four things:</p>
+<ol>
+<li><strong>IP address</strong></li>
+<li><strong>Subnet mask</strong></li>
+<li><strong>Default gateway</strong> (the router to use for everything outside the local network)</li>
+<li><strong>DNS server</strong></li>
+</ol>
+<p>A lease <strong>expires</strong>, so addresses are renewed and recycled over time.</p>
+<p><span class="tag warn">On the quick-reference sheet</span> The four-step handshake: <strong>D</strong>iscover → <strong>O</strong>ffer → <strong>R</strong>equest → <strong>A</strong>ck = <strong>DORA</strong>.</p>
+<div class="ladder">
+  <div class="ends"><span>New device (no IP yet)</span><span>DHCP server</span></div>
+  <div class="lines">
+    <div class="msg r"><b>D — Discover</b><small>broadcast: "Anyone out there? I need an address."</small></div>
+    <div class="msg l"><b>O — Offer</b><small>"You can have 192.168.1.50."</small></div>
+    <div class="msg r"><b>R — Request</b><small>broadcast: "I'll take 192.168.1.50, please."</small></div>
+    <div class="msg l g"><b>A — Ack</b><small>"Confirmed. It's yours for 24 hours." (+ mask, gateway, DNS)</small></div>
+  </div>
+</div>
+<ul>
+<li><strong>Discover and Request are broadcasts</strong> (sent to <code>255.255.255.255</code>): the whole subnet hears them. The client has no IP yet and does not know where the server is.</li>
+<li>The Request is also broadcast so that any <em>other</em> DHCP servers learn their offers were not chosen.</li>
+<li>DHCP runs over <strong>UDP</strong>: server port 67, client port 68.</li>
+</ul>
+
+<h3 id="l15-routes">Route tables and longest-prefix match</h3>
+<p>A <strong>route table</strong> is just a list: <strong>destination prefix → next hop</strong>. The router checks it for every single packet.</p>
+<ul>
+<li>If several rows match, the <strong>most specific</strong> one wins: the one with the <strong>longest prefix</strong>. This is the <strong>longest-prefix match</strong> rule.</li>
+<li><code>0.0.0.0/0</code> is the <strong>default route</strong>: it matches everything, so it is used only when nothing more specific matches ("everything else goes here").</li>
+</ul>
+<div class="box example" data-t="Worked example (from class) — a packet to 10.0.1.55">
+<div class="tw"><table>
+<thead><tr><th>Route</th><th>Matches 10.0.1.55?</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>0.0.0.0/0</td><td>Yes, but /0 is the broadest</td><td>Not chosen</td></tr>
+<tr><td>10.0.0.0/16</td><td>Yes (first 16 bits match)</td><td>Not chosen</td></tr>
+<tr class="hl"><td>10.0.1.0/24</td><td>Yes (first 24 bits match)</td><td><strong>Winner: /24 is the longest</strong></td></tr>
+</tbody></table></div>
+<p>Specificity beats generality, every time.</p>
+</div>
+
+<aside class="box aws" data-t="AWS mirror — IGW, NAT Gateway, and VPC route tables">
+<ul>
+<li><strong>Internet Gateway (IGW):</strong> attaches your VPC to the Internet. A public subnet routes <code>0.0.0.0/0 → IGW</code>. Its instances can be reached <strong>both ways</strong> (if they have a public IP).</li>
+<li><strong>NAT Gateway:</strong> lives <strong>in a public subnet</strong>. A private subnet routes <code>0.0.0.0/0 → NAT GW</code>. Instances can get updates <strong>out</strong> but stay unreachable from outside. "Updates flow out; attackers can't flow in."</li>
+<li>Every route table also has a <code>local</code> route for the VPC's own range, so subnets inside the VPC can talk to each other.</li>
+</ul>
+<div class="two">
+<div class="tw"><table>
+<thead><tr><th colspan="2">Public subnet route table</th></tr></thead>
+<tbody><tr><td>10.0.0.0/16</td><td>local</td></tr><tr class="hl"><td>0.0.0.0/0</td><td><strong>igw-…</strong></td></tr></tbody>
+</table></div>
+<div class="tw"><table>
+<thead><tr><th colspan="2">Private subnet route table</th></tr></thead>
+<tbody><tr><td>10.0.0.0/16</td><td>local</td></tr><tr class="hl"><td>0.0.0.0/0</td><td><strong>nat-…</strong></td></tr></tbody>
+</table></div>
+</div>
+<p>Same VPC. One word in one row changes who reaches the Internet, and who reaches you.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>Internet Gateway</th><th>NAT Gateway</th></tr></thead>
+<tbody>
+<tr><th>Direction</th><td>Inbound and outbound</td><td>Outbound only</td></tr>
+<tr><th>Used by</th><td>Public subnets</td><td>Private subnets</td></tr>
+<tr><th>Placed</th><td>Attached to the VPC</td><td>Inside a public subnet</td></tr>
+</tbody></table></div>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Two laptops behind one home IP both open the same website. Which field lets the NAT box tell their replies apart?</summary><p>The port number. That is PAT: each connection is given a unique public port.</p></details>
+<details><summary>Name the four things a DHCP lease gives a device.</summary><p>IP address, subnet mask, default gateway, DNS server.</p></details>
+<details><summary>Expand DORA and say which steps are broadcasts.</summary><p>Discover, Offer, Request, Ack. Discover and Request are broadcasts.</p></details>
+<details><summary>A route table has 0.0.0.0/0, 10.1.0.0/16, and 10.1.4.0/22. Where does a packet to 10.1.5.9 go?</summary><p>To the 10.1.4.0/22 route. /22 covers 10.1.4.0–10.1.7.255, which includes 10.1.5.9, and it is the longest matching prefix.</p></details>
+<details><summary>A private-subnet server needs OS updates but must never accept inbound connections. Which gateway, and what route?</summary><p>NAT Gateway, with the route <code>0.0.0.0/0 → NAT GW</code> in the private subnet's route table.</p></details>
+<details><summary>Give one benefit and one cost of NAT.</summary><p>Benefit: saves public IPv4 addresses (and hides internal hosts). Cost: breaks end-to-end reachability; inbound connections need explicit setup.</p></details>
+</div>
+
+<p class="watch" data-topics="nat-pat dhcp vpc-subnets-nat"><a class="search" href="https://www.youtube.com/results?search_query=NAT+and+PAT+explained">Search YouTube: NAT and PAT explained</a></p>
+</section>
+
+<!-- ============================================================ L16 -->
+<section class="lec" id="l16">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Lecture 16</span></p>
+  <h2>Lecture 16 — Diagnostics with ICMP, and the move to IPv6</h2>
+  <p class="oneline">ICMP is how the network reports problems (ping and traceroute are built on it), and IPv6 is the real cure for running out of addresses.</p>
+</header>
+
+<h3 id="l16-icmp">ICMP — Internet Control Message Protocol</h3>
+<ul>
+<li>ICMP is <strong>IP's control and error channel</strong>. It carries control and error messages, <strong>never user data</strong>.</li>
+<li>An ICMP message travels <strong>inside an IP datagram</strong>, but it is considered a <strong>network-layer</strong> helper.</li>
+<li>A router that drops a packet can say <strong>why</strong>. Without that you would be blind.</li>
+</ul>
+<div class="tw"><table>
+<thead><tr><th>ICMP message</th><th>Meaning</th><th>Powers</th></tr></thead>
+<tbody>
+<tr><th>Echo Request / Echo Reply</th><td>"Are you there?" → "Yes."</td><td><strong>ping</strong></td></tr>
+<tr><th>Time Exceeded</th><td>The packet's TTL reached 0; a router dropped it and reports back</td><td><strong>traceroute</strong></td></tr>
+<tr><th>Destination Unreachable</th><td>No route, host down, or port closed: delivery failed</td><td>Error reporting</td></tr>
+<tr><th>Redirect</th><td>"There is a better next hop." Sent by a router to a host.</td><td>Route hints</td></tr>
+</tbody></table></div>
+
+<h4>ping — are you there?</h4>
+<p>Sends an Echo Request and waits for the Echo Reply. It tells you two things: the host is <strong>reachable</strong>, and the <strong>round-trip time</strong> (RTT).</p>
+<pre><code>$ ping -c 3 8.8.8.8
+64 bytes from 8.8.8.8: icmp_seq=1 time=12.4 ms
+64 bytes from 8.8.8.8: icmp_seq=2 time=11.8 ms
+64 bytes from 8.8.8.8: icmp_seq=3 time=12.1 ms
+rtt min/avg/max = 11.8/12.1/12.4 ms          <span class="c">← reachable, about 12 ms away</span>
+
+$ ping 10.55.99.200
+Request timed out.
+3 packets sent, 0 received, 100% loss         <span class="c">← nothing came back</span></code></pre>
+<p>A reply proves the host is reachable. Silence means the request went out and nothing came back. Note that silence can also mean a firewall is blocking ICMP, so it does not always prove the host is down.</p>
+
+<h4>traceroute — the TTL trick</h4>
+<p>Every IP packet has a <strong>TTL</strong> (Time To Live) number. <strong>Each router subtracts 1.</strong> When it reaches 0 the router <strong>drops the packet</strong> and sends back an ICMP <strong>Time Exceeded</strong> message. TTL exists to stop packets circling forever. Traceroute uses it on purpose: it sends packets designed to die and listens to who reports the death.</p>
+<div class="tw"><table>
+<thead><tr><th>Round</th><th>TTL sent</th><th>Dies at</th><th>Who replies "Time Exceeded"</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1</td><td>Router 1</td><td>R1 → you now know hop 1</td></tr>
+<tr><td>2</td><td>2</td><td>Router 2</td><td>R2 → hop 2</td></tr>
+<tr><td>3</td><td>3</td><td>Router 3</td><td>R3 → hop 3</td></tr>
+<tr><td>4</td><td>4</td><td>—</td><td>The server itself answers. Done.</td></tr>
+</tbody></table></div>
+<p>Each round reveals one more router. Reading the output:</p>
+<ul>
+<li>RTTs rise from hop to hop because each is farther away.</li>
+<li><code>* * *</code> means no reply: filtered or dropped, <strong>not always broken</strong>.</li>
+<li>When troubleshooting, <strong>the last hop that responded is your prime suspect</strong>. If replies stop after hop 6, start investigating at or just after hop 6.</li>
+</ul>
+
+<h3 id="l16-ipv6">IPv6</h3>
+<p><strong>The problem:</strong> IPv4's 32 bits give about 4.3 billion addresses, fewer than the number of people on Earth. NAT was a <strong>patch</strong>: it bought time but did not create addresses, and it hides hosts from the outside. IPv6 is the actual cure.</p>
+<ul>
+<li>An IPv6 address is <strong>128 bits</strong>.</li>
+<li>Written as <strong>8 groups of 4 hexadecimal digits</strong> (16 bits each), separated by colons.</li>
+<li>Total: 2<sup>128</sup> ≈ <strong>3.4 × 10<sup>38</sup></strong> addresses. Enough for every device and sensor with room to spare.</li>
+</ul>
+<h4>Shortening an IPv6 address</h4>
+<div class="tw"><table>
+<thead><tr><th>Step</th><th>Rule</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>Full</td><td></td><td><code>2001:0db8:0000:0000:0000:0000:0000:0001</code></td></tr>
+<tr><td>1</td><td>Drop <strong>leading</strong> zeros in each group</td><td><code>2001:db8:0:0:0:0:0:1</code></td></tr>
+<tr><td>2</td><td>Replace <strong>one</strong> run of all-zero groups with <code>::</code></td><td><code>2001:db8::1</code></td></tr>
+</tbody></table></div>
+<div class="box warn" data-t="One rule">
+<p><code>::</code> may appear <strong>only once</strong> in an address. With two of them, nobody could tell how many zero groups each one stands for.</p>
+</div>
+<h4>What changes with IPv6</h4>
+<div class="tw"><table>
+<thead><tr><th>Change</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><th>No NAT needed</th><td>End-to-end addressing returns: every host can be directly reachable</td></tr>
+<tr><th>Simplified header</th><td>Fixed, streamlined format (40 bytes) that routers process faster</td></tr>
+<tr><th>Autoconfiguration</th><td>A host can assign itself an address; no DHCP server required</td></tr>
+<tr><th>No broadcast</th><td>Uses <strong>multicast</strong> instead: talk to a group, not the whole wire</td></tr>
+</tbody></table></div>
+<h4>Transition: living in a mixed world</h4>
+<p>The Internet cannot switch overnight, and NAT "worked well enough", so adoption is slow. Three transition mechanisms:</p>
+<ul>
+<li><strong>Dual stack:</strong> a device runs IPv4 and IPv6 together. It tries IPv6 first and falls back to IPv4. This is the main method.</li>
+<li><strong>Tunneling:</strong> wrap an IPv6 packet inside an IPv4 packet to cross a part of the network that only speaks IPv4.</li>
+<li><strong>Translation:</strong> convert between IPv6 and IPv4 at a gateway (e.g. NAT64).</li>
+</ul>
+<aside class="box aws" data-t="AWS mirror">
+<p>An AWS VPC can take an IPv6 CIDR block alongside its IPv4 block (dual stack). Same subnetting thinking, far more room.</p>
+</aside>
+<div class="tw"><table>
+<thead><tr><th></th><th>IPv4</th><th>IPv6</th></tr></thead>
+<tbody>
+<tr><th>Size</th><td>32 bits</td><td>128 bits</td></tr>
+<tr><th>Written as</th><td>4 decimal octets, dots</td><td>8 hex groups, colons</td></tr>
+<tr><th>Addresses</th><td>≈ 4.3 × 10⁹</td><td>≈ 3.4 × 10³⁸</td></tr>
+<tr><th>NAT</th><td>Needed</td><td>Not needed</td></tr>
+<tr><th>Broadcast</th><td>Yes</td><td>No (multicast)</td></tr>
+<tr><th>Address setup</th><td>DHCP or manual</td><td>Autoconfiguration (or DHCPv6)</td></tr>
+</tbody></table></div>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>What is ICMP used for? Does it carry user data?</summary><p>It carries control and error messages for IP (reachability, TTL expiry, unreachable destinations). It never carries user data.</p></details>
+<details><summary>Which ICMP messages does ping use? Which does traceroute rely on?</summary><p>ping: Echo Request and Echo Reply. traceroute: Time Exceeded.</p></details>
+<details><summary>Explain the TTL trick in two sentences.</summary><p>Traceroute sends packets with TTL 1, 2, 3… Each router decrements TTL; the router where it hits 0 drops the packet and returns an ICMP Time Exceeded, revealing itself as that hop.</p></details>
+<details><summary>A traceroute shows replies through hop 6 and then <code>* * *</code> to the end. Where do you look first?</summary><p>At or just after hop 6, the last hop that replied.</p></details>
+<details><summary>Compress <code>2001:0db8:0000:0000:0000:ff00:0042:8329</code>.</summary><p><code>2001:db8::ff00:42:8329</code>.</p></details>
+<details><summary>How many bits is an IPv6 address, and why can <code>::</code> be used only once?</summary><p>128 bits. Two <code>::</code> would make it impossible to know how many zero groups each replaces.</p></details>
+<details><summary>What is dual stack?</summary><p>Running IPv4 and IPv6 side by side on the same device or network, preferring IPv6 and falling back to IPv4.</p></details>
+</div>
+
+<p class="watch" data-topics="icmp-ping traceroute ipv6"><a class="search" href="https://www.youtube.com/results?search_query=ICMP+ping+traceroute+TTL+explained">Search YouTube: ICMP, ping and traceroute</a></p>
+</section>
+
+<div class="pager"><a href="03-transport-layer.html">← Transport layer</a><a href="05-routing-security.html">Next: Routing and security →</a></div>
+
+</main>
+</div>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>

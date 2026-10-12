@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Computer Networks — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<main style="max-width:980px;margin:0 auto">
+
+<p class="tags"><span class="tag">CSAI Computer Networks</span><span class="tag">AY 26-27 · Sem 5</span></p>
+<h1>Computer Networks, explained from zero</h1>
+<p class="lede">Notes for the whole course, written so you can start without having studied anything. The mid-sem part (Lectures 1–13) is in full detail; the rest of the syllabus is here too, so the same notes work for the end-sem.</p>
+
+<div class="box exam" data-t="Mid-sem: what to study">
+<p><strong>Lectures 1–13</strong> = pages 1, 2, 3 and the first section of page 4. Then the <a href="cheatsheet.html">cheat sheet</a> for last-day revision.</p>
+<p class="small">The course plan says the mid-sem "covers Weeks 1–6" (Lectures 1–12), while the lecture list goes up to Lecture 13 (IPv4 and CIDR). Lecture 13 is included as mid-sem here; confirm with your instructor.</p>
+</div>
+
+<h2 style="margin-top:28px">Mid-sem</h2>
+<div class="cards">
+  <div class="card">
+    <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Weeks 1–2</span></p>
+    <h3><a href="01-how-internet-works.html">1 · How the Internet works</a></h3>
+    <ul>
+      <li><a data-lec="01-how-internet-works.html#l1" href="01-how-internet-works.html#l1">L1 — The Internet, edge vs core, traceroute</a></li>
+      <li><a data-lec="01-how-internet-works.html#l2" href="01-how-internet-works.html#l2">L2 — Packet switching, delay, loss, throughput</a></li>
+      <li><a data-lec="01-how-internet-works.html#l3" href="01-how-internet-works.html#l3">L3 — Layers: OSI vs TCP/IP, encapsulation</a></li>
+      <li><a data-lec="01-how-internet-works.html#l4" href="01-how-internet-works.html#l4">L4 — Devices, topologies, AWS VPC</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Weeks 3–4</span></p>
+    <h3><a href="02-application-layer.html">2 · The application layer</a></h3>
+    <ul>
+      <li><a data-lec="02-application-layer.html#l5" href="02-application-layer.html#l5">L5 — HTTP/1.1, 2, 3; P2P; REST</a></li>
+      <li><a data-lec="02-application-layer.html#l6" href="02-application-layer.html#l6">L6 — HTTPS and the TLS handshake</a></li>
+      <li><a data-lec="02-application-layer.html#l7" href="02-application-layer.html#l7">L7 — DNS and Route 53</a></li>
+      <li><a data-lec="02-application-layer.html#l8" href="02-application-layer.html#l8">L8 — Email, caching, CDNs</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Weeks 5–6</span></p>
+    <h3><a href="03-transport-layer.html">3 · The transport layer</a></h3>
+    <ul>
+      <li><a data-lec="03-transport-layer.html#l9" href="03-transport-layer.html#l9">L9 — Ports, UDP, TCP handshake</a></li>
+      <li><a data-lec="03-transport-layer.html#l10" href="03-transport-layer.html#l10">L10 — Go-Back-N, Selective Repeat, flow control</a></li>
+      <li><a data-lec="03-transport-layer.html#l11" href="03-transport-layer.html#l11">L11 — Congestion control: slow start, AIMD</a></li>
+      <li><a data-lec="03-transport-layer.html#l12" href="03-transport-layer.html#l12">L12 — Load balancing: ALB vs NLB, high availability</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <p class="tags"><span class="tag mid">L13 mid-sem</span><span class="tag after">L14–16 after</span><span class="tag">Weeks 7–8</span></p>
+    <h3><a href="04-ip-addressing.html">4 · IP addressing and subnetting</a></h3>
+    <ul>
+      <li><a data-lec="04-ip-addressing.html#l13" href="04-ip-addressing.html#l13">L13 — IPv4, classes, CIDR</a></li>
+      <li><a data-lec="04-ip-addressing.html#l14" href="04-ip-addressing.html#l14">L14 — Subnetting, designing a VPC</a></li>
+      <li><a data-lec="04-ip-addressing.html#l15" href="04-ip-addressing.html#l15">L15 — NAT, PAT, DHCP, route tables</a></li>
+      <li><a data-lec="04-ip-addressing.html#l16" href="04-ip-addressing.html#l16">L16 — ICMP, ping, traceroute, IPv6</a></li>
+    </ul>
+  </div>
+</div>
+
+<h2>After the mid-sem</h2>
+<div class="cards">
+  <div class="card">
+    <p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Weeks 9–10</span></p>
+    <h3><a href="05-routing-security.html">5 · Routing and security</a></h3>
+    <ul>
+      <li><a data-lec="05-routing-security.html#l17" href="05-routing-security.html#l17">L17 — Dijkstra, Bellman-Ford, count-to-infinity</a></li>
+      <li><a data-lec="05-routing-security.html#protocols" href="05-routing-security.html#protocols">RIP, OSPF, BGP</a></li>
+      <li><a data-lec="05-routing-security.html#firewalls" href="05-routing-security.html#firewalls">Firewalls, Security Groups vs NACLs</a></li>
+      <li><a data-lec="05-routing-security.html#attacks" href="05-routing-security.html#attacks">Attacks, WAF and Shield</a></li>
+      <li><a data-lec="05-routing-security.html#vpn" href="05-routing-security.html#vpn">VPNs</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Weeks 11–12</span></p>
+    <h3><a href="06-link-physical-cloud.html">6 · Link layer, physical layer, cloud at scale</a></h3>
+    <ul>
+      <li><a data-lec="06-link-physical-cloud.html#link" href="06-link-physical-cloud.html#link">MAC, ARP, Ethernet, CSMA/CD</a></li>
+      <li><a data-lec="06-link-physical-cloud.html#wifi" href="06-link-physical-cloud.html#wifi">WiFi, CSMA/CA, WPA2/WPA3</a></li>
+      <li><a data-lec="06-link-physical-cloud.html#crc" href="06-link-physical-cloud.html#crc">Error detection and CRC</a></li>
+      <li><a data-lec="06-link-physical-cloud.html#physical" href="06-link-physical-cloud.html#physical">Media, encoding, Shannon capacity</a></li>
+      <li><a data-lec="06-link-physical-cloud.html#cloud-scale" href="06-link-physical-cloud.html#cloud-scale">VPC peering, Transit Gateway, CloudFront</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <p class="tags"><span class="tag warn">Revision</span></p>
+    <h3><a href="cheatsheet.html">Mid-sem cheat sheet</a></h3>
+    <ul>
+      <li><a href="cheatsheet.html#formulas">Every formula on one table</a></li>
+      <li><a href="cheatsheet.html#layers">Layers, PDUs, devices</a></li>
+      <li><a href="cheatsheet.html#rdt">GBN vs SR, cwnd vs rwnd</a></li>
+      <li><a href="cheatsheet.html#drill">Twelve numericals with answers</a></li>
+    </ul>
+  </div>
+</div>
+
+<section class="lec">
+<h2>How to use these notes</h2>
+<ol class="steps">
+<li><strong>Read in order, page 1 to page 4.</strong> Each lecture builds on the one before. Page 1 gives the vocabulary the rest depends on.</li>
+<li><strong>Every topic has the same parts:</strong> the idea in one line, a plain explanation with the analogy used in class, a diagram, a worked example, a "don't confuse" box, the AWS equivalent, and questions.</li>
+<li><strong>Do the "Check yourself" questions before opening the answers.</strong> Click a question to reveal its answer. If you get it wrong, re-read that section.</li>
+<li><strong>Stuck? Use the "Watch" box</strong> at the end of each lecture. Every video link was checked to be live when these notes were made, and many topics include a Hindi-English option (Gate Smashers). The last link in each box is a YouTube search in case a video is removed later.</li>
+<li><strong>Press "Mark as revised"</strong> on a lecture when you finish it. Ticks appear on this page and are remembered in this browser.</li>
+<li><strong>Finish with the <a href="cheatsheet.html">cheat sheet</a></strong> and its numericals drill.</li>
+</ol>
+<div class="two">
+<div class="box example" data-t="Where marks usually come from">
+<ul>
+<li>Delay and throughput sums (L/R, d/s, bottleneck)</li>
+<li>Comparison tables: OSI vs TCP/IP, TCP vs UDP, GBN vs SR, HTTP versions, ALB vs NLB, POP3 vs IMAP</li>
+<li>Ordered sequences: TCP handshake, TLS handshake, DNS resolution</li>
+<li>cwnd traces through slow start and loss</li>
+<li>CIDR: hosts in a prefix, sizing a prefix, finding a network address</li>
+</ul>
+</div>
+<div class="box note" data-t="Colour key">
+<p><span class="tag mid">Mid-sem</span> in the mid-sem syllabus<br>
+<span class="tag after">After mid-sem</span> for the end-sem<br>
+<span class="tag warn">Numericals likely</span> practise the calculations<br>
+<span class="tag warn">From syllabus + textbook</span> no class slides existed for this part</p>
+</div>
+</div>
+</section>
+
+<section class="lec">
+<h2>Things to know about these notes</h2>
+<ul>
+<li><strong>Source.</strong> Built from the 16 lecture PDFs in the <code>CLASS</code> folder, following the mid-sem syllabus and the course plan. Examples, numbers, and analogies are the ones from the slides wherever the slides had them.</li>
+<li><strong>The DNS lecture (Lecture 7) had no PDF</strong> in the folder. That section is written from the syllabus, the DNS recap in Lecture 9, and the textbook.</li>
+<li><strong>Weeks 9–12</strong> had slides only for Lecture 17. The rest of pages 5 and 6 follows the syllabus and is shorter.</li>
+<li><strong>Three places where a class slide does not add up</strong> are flagged in red boxes with the correct working: the <a href="03-transport-layer.html#l10-tools">checksum example</a> (Lecture 10), the <a href="03-transport-layer.html#l11-loss">"fast recovery" table labelled timeout</a> (Lecture 11), and the <a href="05-routing-security.html#l17-ls">Dijkstra trace</a> (Lecture 17). Ask your instructor which answer they expect.</li>
+<li><strong>Reference books:</strong> Kurose &amp; Ross, <em>Computer Networking: A Top-Down Approach</em>; Forouzan, <em>Data Communications and Networking</em>.</li>
+</ul>
+</section>
+
+</main>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>

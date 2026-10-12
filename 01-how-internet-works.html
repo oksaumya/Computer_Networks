@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1 · How the Internet Works — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="On this page"></nav>
+<main>
+
+<p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Weeks 1–2</span><span class="tag">Lectures 1–4</span></p>
+<h1>How the Internet Actually Works</h1>
+<p class="lede">Start here. These four lectures give you the map of the whole course: what the Internet is made of, how data moves through it, why it is sometimes slow, and how the job is split into layers.</p>
+
+<!-- ============================================================ L1 -->
+<section class="lec" id="l1">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 1</span></p>
+  <h2>Lecture 1 — The Internet and the Instagram journey</h2>
+  <p class="oneline">The Internet is not one big network. It is millions of small networks joined together, and your data hops across many of them to reach a server.</p>
+</header>
+
+<h3>What is a computer network?</h3>
+<p>A <strong>network</strong> is two or more devices connected so they can send data to each other. Your phone and your WiFi router form a network. Your college's computers form a bigger one. Connect all such networks in the world to each other and you get the <strong>Internet</strong>, which is why it is called a <strong>network of networks</strong>.</p>
+
+<p>Networks are named by how much area they cover:</p>
+<div class="tw"><table>
+<thead><tr><th>Type</th><th>Full name</th><th>Size</th><th>Example</th></tr></thead>
+<tbody>
+<tr><th>PAN</th><td>Personal Area Network</td><td>A few metres</td><td>Phone ↔ smartwatch or earbuds over Bluetooth</td></tr>
+<tr><th>LAN</th><td>Local Area Network</td><td>One home, office, or building</td><td>Your home WiFi; a college computer lab</td></tr>
+<tr><th>MAN</th><td>Metropolitan Area Network</td><td>A city</td><td>A city-wide network run by a municipality or a large organisation</td></tr>
+<tr><th>WAN</th><td>Wide Area Network</td><td>Countries and continents</td><td>A company linking its branch offices; the Internet itself</td></tr>
+</tbody></table></div>
+
+<h3>What is "the cloud", really?</h3>
+<p>"The cloud" sounds like something floating in the sky. It is the opposite: huge buildings called <strong>data centres</strong>, each filled with thousands of physical computers (<strong>servers</strong>). Instagram's photos, Netflix's movies, and your Google Drive files all sit on real disks in those buildings. Companies such as <strong>AWS</strong> (Amazon), <strong>Azure</strong> (Microsoft), and <strong>GCP</strong> (Google) rent those servers out.</p>
+<p>The continents are joined by <strong>submarine cables</strong>: fibre-optic cables lying on the ocean floor. There were about 597 cable systems in 2025. They are physical objects, so they break. The most common cause is ships' fishing anchors dragging across them.</p>
+<div class="box note" data-t="A bit of history">
+<p>Networks are not new. In 1969, a computer at UCLA tried to send the word "login" to a computer at Stanford Research Institute. Only "lo" got through before the system crashed. That was the first message on the network that became the Internet.</p>
+</div>
+
+<h3>Two ways to describe the Internet</h3>
+<p>Exams like to ask for both views. They describe the same thing from two angles.</p>
+<div class="two">
+<div class="box example" data-t="1. Nuts-and-bolts view (what it is made of)">
+<ul>
+<li><strong>Hosts / end systems</strong>: phones, laptops, servers. They sit at the edge and run apps.</li>
+<li><strong>Communication links</strong>: fibre, copper, radio. Each has a speed (bits per second).</li>
+<li><strong>Packet switches</strong>: routers and switches that pass data along.</li>
+<li><strong>ISPs</strong>: Internet Service Providers (Jio, Airtel) that connect you to everyone else.</li>
+<li><strong>Protocols</strong>: the agreed rules (HTTP, TCP, IP) for how to talk.</li>
+</ul>
+</div>
+<div class="box example" data-t="2. Service view (what it does for apps)">
+<ul>
+<li>The Internet is an <strong>infrastructure that provides services to applications</strong>: web, video, email, games.</li>
+<li>An app does not care about cables. It just asks the Internet "deliver this data to that app on that computer".</li>
+<li>The Internet offers two main delivery services: reliable (TCP) and fast-but-unreliable (UDP). You will meet them in <a href="03-transport-layer.html">part 3</a>.</li>
+</ul>
+</div>
+</div>
+<div class="box note" data-t="Key word: protocol">
+<p>A <strong>protocol</strong> is a set of rules that says what messages look like, what order they are sent in, and what each side does when it gets one. People do this too: you say "Hi", the other person says "Hi", then you ask your question. If someone replies in a language you do not know, the conversation fails. Computers are the same.</p>
+</div>
+
+<h3 id="l1-edge-core">Network edge and network core</h3>
+<p>Split the Internet into three parts:</p>
+<div class="tw"><table>
+<thead><tr><th>Part</th><th>What is there</th><th>Its job</th></tr></thead>
+<tbody>
+<tr><th>Network edge</th><td><strong>End systems</strong> (also called hosts): your phone, your laptop, and also the servers in data centres. A host is either a <strong>client</strong> (asks for things) or a <strong>server</strong> (gives things).</td><td>Run applications. Data starts and ends here.</td></tr>
+<tr><th>Access network</th><td>The first link that joins a host to the Internet: <strong>WiFi</strong>, <strong>cellular</strong> (4G/5G), <strong>Ethernet</strong>, home fibre or cable.</td><td>Get your data from your device to your ISP.</td></tr>
+<tr><th>Network core</th><td>A mesh of fast <strong>routers</strong> connected by fibre, owned by ISPs. Small ISPs connect to bigger ISPs.</td><td>Carry data over long distances from one access network to another.</td></tr>
+</tbody></table></div>
+<div class="box warn" data-t="Don't confuse">
+<p>A server in a Google data centre is at the <strong>edge</strong>, not the core. "Edge" means "an end point where data starts or finishes", not "small device". The <strong>core</strong> contains only routers and links that pass data through.</p>
+</div>
+
+<h3 id="l1-journey">The Instagram journey</h3>
+<p>The question from class: you tap the Instagram icon and a reel plays in under a second. What did your data touch on the way? Most people say "WiFi → Instagram". The real answer is much longer, and it is the outline of this whole course.</p>
+<figure>
+<div class="flow">
+  <div class="node a"><b>Your phone</b><small>end system (edge)</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>WiFi router or cell tower</b><small>access network</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>Your ISP</b><small>Jio, Airtel…</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>Internet core</b><small>many routers, maybe an undersea cable</small></div>
+  <div class="arr">→</div>
+  <div class="node g"><b>CDN edge server or data centre</b><small>where the reel is stored</small></div>
+</div>
+<figcaption>The request travels left to right. The video comes back right to left along a similar path.</figcaption>
+</figure>
+<p>What happens, step by step. Each step is a later topic, so do not worry if a word is new.</p>
+<ol class="steps">
+<li><strong>Find the address.</strong> Your phone only knows the name <code>instagram.com</code>. It asks <strong>DNS</strong> for the matching IP address (a number such as <code>157.240.x.x</code>). <a href="02-application-layer.html#l7">→ DNS</a></li>
+<li><strong>Open a connection.</strong> Your phone and the server do a <strong>TCP 3-way handshake</strong> to agree to talk. <a href="03-transport-layer.html#l9">→ TCP</a></li>
+<li><strong>Lock it.</strong> A <strong>TLS handshake</strong> sets up encryption so nobody in between can read your data. <a href="02-application-layer.html#l6">→ HTTPS/TLS</a></li>
+<li><strong>Ask for the reel.</strong> The app sends an <strong>HTTP request</strong>: "GET this video". <a href="02-application-layer.html#l5">→ HTTP</a></li>
+<li><strong>Chop and send.</strong> The request is cut into <strong>packets</strong>. Each packet hops from router to router through the access network, the ISP, and the core. <a href="#l2">→ packet switching</a></li>
+<li><strong>Serve from nearby.</strong> The video usually comes from a <strong>CDN</strong> server in or near your city, not from America. <a href="02-application-layer.html#l8">→ CDN</a></li>
+<li><strong>Come back reliably.</strong> The video returns as thousands of packets. TCP puts them in order and re-sends any that got lost. <a href="03-transport-layer.html#l10">→ reliable delivery</a></li>
+</ol>
+
+<h3 id="l1-traceroute">traceroute: see the hops yourself</h3>
+<p><code>traceroute</code> is a command that shows every router your data passes through on the way to a destination, and how long each one takes to answer. Each router on the path is called a <strong>hop</strong>.</p>
+<pre><code><span class="c"># Mac / Linux:  traceroute youtube.com      Windows:  tracert youtube.com</span>
+ 1  192.168.1.1      2.1 ms    <span class="c">← your home WiFi router (access network)</span>
+ 2  10.50.0.1        9.8 ms    <span class="c">← first router at your ISP</span>
+ 3  core1.isp.net   14.3 ms    <span class="c">← ISP core</span>
+ 4  core2.isp.net   22.9 ms    <span class="c">← still in the core, farther away</span>
+ 5  * * *                      <span class="c">← this router chose not to answer</span>
+ 6  142.250.x.x     28.4 ms    <span class="c">← Google's server (destination)</span></code></pre>
+<p>How to read it:</p>
+<ul>
+<li>The number on the left is the hop number. The time is the <strong>round trip</strong> from your computer to that hop and back.</li>
+<li><strong>Latency by hop:</strong> the first hop (your own router) is tiny. The time jumps when you leave your home (access network → ISP), then grows slowly through the core. A big jump usually means a long physical distance, such as an undersea cable.</li>
+<li><code>* * *</code> means that router did not reply. That is normal; many routers are set to ignore traceroute. It does not mean the path is broken.</li>
+<li>If the final time is small (say 10–30 ms) for a site hosted abroad, you are being served by a CDN server near you.</li>
+</ul>
+<p class="small muted">How traceroute works inside (the TTL trick) is in <a href="04-ip-addressing.html#l16">Lecture 16</a>.</p>
+
+<h3>Why this course goes top-down</h3>
+<p>The course starts with the things you already use (web, HTTP, DNS, streaming) and then goes down: Application → Transport (TCP/UDP) → Network (IP, routing) → Link → Physical. Knowing what apps need first explains <em>why</em> the lower layers are built the way they are.</p>
+
+<aside class="box aws" data-t="AWS mirror — three words to know">
+<div class="tw"><table>
+<thead><tr><th>Term</th><th>Meaning</th><th>Example</th></tr></thead>
+<tbody>
+<tr><th>Region</th><td>A geographic area where AWS has data centres. Regions are isolated from each other.</td><td>Mumbai = <code>ap-south-1</code></td></tr>
+<tr><th>Availability Zone (AZ)</th><td>One or more separate data centres inside a Region, with their own power and network. A Region has several AZs.</td><td><code>ap-south-1a</code>, <code>ap-south-1b</code></td></tr>
+<tr><th>Edge Location</th><td>A small site close to users that caches content (used by the CloudFront CDN). There are far more of these than Regions.</td><td>Edge sites in Delhi, Chennai, Hyderabad…</td></tr>
+</tbody></table></div>
+<p>Size order: <strong>Region ⊃ AZ ⊃ data centre</strong>. Edge Locations are separate and sit closer to users. More detail in <a href="#l4-cloud">Lecture 4</a>.</p>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Why is the Internet called a "network of networks"?</summary><p>Because it is not a single network owned by one body. It is millions of separate networks (home, college, company, ISP) connected to each other through ISPs so that any host can reach any other.</p></details>
+<details><summary>Is a web server at the network edge or in the core?</summary><p>At the <strong>edge</strong>. Every end system (client or server) is at the edge. The core contains only routers and the links between them.</p></details>
+<details><summary>Name three access network technologies.</summary><p>WiFi, cellular (4G/5G), Ethernet. Home fibre, cable, and DSL also count.</p></details>
+<details><summary>In a traceroute, hop 5 shows <code>* * *</code> but hop 6 answers normally. Is the network broken at hop 5?</summary><p>No. Hop 5 forwarded your packets (otherwise hop 6 could not reply). It just refused to send a reply to traceroute.</p></details>
+<details><summary>What is the difference between the nuts-and-bolts view and the service view?</summary><p>Nuts-and-bolts lists the parts: hosts, links, routers/switches, ISPs, protocols. The service view describes the Internet as an infrastructure that delivers data for applications.</p></details>
+</div>
+
+<p class="watch" data-topics="internet-overview traceroute aws-global-infra"><a class="search" href="https://www.youtube.com/results?search_query=how+does+the+internet+work+explained+for+beginners">Search YouTube: how does the internet work (beginners)</a></p>
+</section>
+
+<!-- ============================================================ L2 -->
+<section class="lec" id="l2">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 2</span><span class="tag warn">Numericals likely</span></p>
+  <h2>Lecture 2 — Packet switching, delay, loss, throughput</h2>
+  <p class="oneline">Data is cut into small packets that share the links with everyone else's packets. Sharing is efficient, but it means packets can be delayed or dropped.</p>
+</header>
+
+<h3 id="l2-switching">Circuit switching vs packet switching</h3>
+<div class="box analogy" data-t="Class analogy — a tale of two phone calls">
+<p><strong>Landline call (circuit switching):</strong> a line is reserved for the whole call. If grandma pauses for 10 seconds to think, the line sits idle. It is reserved but wasted, and nobody else can use it.</p>
+<p><strong>WhatsApp call (packet switching):</strong> if you pause for 10 seconds, no packets are sent. That capacity is free for someone else.</p>
+</div>
+<p><strong>Circuit switching</strong> is the old telephone model. Before any talking starts, the network <strong>reserves a dedicated path</strong> from end to end and holds it for the whole call.</p>
+<p><strong>Packet switching</strong> is how the Internet works. Nothing is reserved. Your message (a photo, a web page, a voice clip) is chopped into small chunks called <strong>packets</strong>. Each packet has:</p>
+<ul>
+<li>a <strong>header</strong>: addressing information (where it is from, where it is going), and</li>
+<li>a <strong>payload</strong>: a piece of your actual data.</li>
+</ul>
+<p>Each packet is forwarded on its own, hop by hop, router to router. Two packets of the same photo may even take different routes.</p>
+
+<div class="tw"><table>
+<thead><tr><th></th><th>Circuit switching</th><th>Packet switching</th></tr></thead>
+<tbody>
+<tr><th>Setup before sending</th><td>Yes, a path is reserved first</td><td>No, just send</td></tr>
+<tr><th>Path</th><td>Fixed and dedicated</td><td>Shared; each packet may go a different way</td></tr>
+<tr><th>Capacity when you are silent</th><td>Wasted (still reserved)</td><td>Used by others</td></tr>
+<tr><th>Guarantee</th><td>Guaranteed, steady rate</td><td>No guarantee ("best effort")</td></tr>
+<tr><th>What goes wrong</th><td>Call is refused if no circuit is free</td><td>Packets get delayed in queues or dropped</td></tr>
+<tr><th>If a link fails</th><td>The call drops</td><td>Packets are re-routed around the failure</td></tr>
+<tr><th>Good for</th><td>Steady traffic (old phone calls)</td><td>Bursty traffic (web, chat, video), which is almost all data</td></tr>
+<tr><th>Example</th><td>Landline telephone network</td><td>The Internet</td></tr>
+</tbody></table></div>
+
+<h4>Two rules of packet switching you must know</h4>
+<p><strong>1. Store-and-forward.</strong> A router must receive the <em>entire</em> packet before it sends even the first bit onward: receive fully → check → forward. No router needs to know the whole path. It only needs to know the <strong>next hop</strong>.</p>
+<p><strong>2. Statistical multiplexing.</strong> "Multiplexing" means many users sharing one link. "Statistical" means the sharing is on demand, with no fixed slots. It works because real traffic is <strong>bursty</strong>: you send a lot for a moment, then nothing while you read. It is statistically unlikely that everyone bursts at the same instant, so one link can serve many more users than circuit switching could.</p>
+<p>This gives packet switching two strengths: <strong>efficiency</strong> (links are used only when needed) and <strong>resilience</strong> (nothing is reserved on a path, so traffic can go around a failed link).</p>
+<div class="box note" data-t="The price">
+<p>Packet switching gives <strong>no built-in guarantees</strong>. A packet can wait behind others in a queue, or be dropped when a router's memory is full. TCP (Lectures 9–11) exists to hide this: it detects loss, re-sends, and paces the data so that an unreliable core feels reliable to your app.</p>
+</div>
+
+<h3 id="l2-delay">The four kinds of delay</h3>
+<p>Every packet, at every router on its path, pays four delays.</p>
+<div class="box analogy" data-t="Class analogy — the toll-booth caravan">
+<p>A caravan of cars arrives at a toll booth, then drives down a highway to the next toll booth. The cars are the <strong>bits</strong> of one packet. The booth is the <strong>router's outgoing link</strong>. The highway is the <strong>cable</strong>.</p>
+<p><strong>Toll booth = transmission.</strong> Each car passes the booth one at a time. More cars (a bigger packet) or a slower booth (a slower link) means a longer wait.</p>
+<p><strong>Highway = propagation.</strong> Once through, cars drive at the speed limit. The drive time depends only on the distance and the speed limit, not on how many cars there are.</p>
+</div>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Delay</th><th>What is happening</th><th>Depends on</th><th>In the exam</th></tr></thead>
+<tbody>
+<tr><td>1</td><th>Processing</th><td>Router reads the header, checks for bit errors, decides where to send the packet</td><td>Router speed</td><td>Tiny (microseconds). Named only.</td></tr>
+<tr><td>2</td><th>Queuing</th><td>Packet waits in the router's buffer behind other packets</td><td>How busy the router is. Changes from moment to moment.</td><td>Named only. No maths.</td></tr>
+<tr class="hl"><td>3</td><th>Transmission</th><td>Pushing all the packet's bits onto the link</td><td>Packet size and link rate</td><td><strong>L / R</strong> — calculate</td></tr>
+<tr class="hl"><td>4</td><th>Propagation</th><td>A bit travelling down the link to the other end</td><td>Distance and signal speed</td><td><strong>d / s</strong> — calculate</td></tr>
+</tbody></table></div>
+<div class="formula">total delay at one hop = processing + queuing + transmission + propagation</div>
+
+<h4>Transmission delay = L / R</h4>
+<div class="formula">d<sub>trans</sub> = L / R<small>L = packet length in <b>bits</b> · R = link rate in <b>bits per second</b></small></div>
+<div class="box example" data-t="Worked example (from class)">
+<p>A packet of L = 8,000 bits is sent on a link of R = 2 Mbps.</p>
+<p>Step 1: put R in bits per second. 2 Mbps = 2,000,000 bps.<br>
+Step 2: divide. 8,000 ÷ 2,000,000 = 0.004 s = <strong>4 ms</strong>.</p>
+<p>Double the link rate and the delay halves: 2 Mbps → 4 ms, 4 Mbps → 2 ms, 8 Mbps → 1 ms.</p>
+</div>
+
+<h4>Propagation delay = d / s</h4>
+<div class="formula">d<sub>prop</sub> = d / s<small>d = length of the link in <b>metres</b> · s = signal speed, about <b>2 × 10⁸ m/s</b> in fibre or copper</small></div>
+<div class="box example" data-t="Worked example">
+<p>A fibre link from Delhi to Mumbai is about 1,400 km long.</p>
+<p>Step 1: put d in metres. 1,400 km = 1,400,000 m.<br>
+Step 2: divide. 1,400,000 ÷ 200,000,000 = 0.007 s = <strong>7 ms</strong>.</p>
+<p>A faster link (more Mbps) does <strong>not</strong> change this. Only a shorter distance does.</p>
+</div>
+<div class="box example" data-t="Class example — the 500 Mbps link that still feels slow">
+<p>A geostationary satellite link is sold as 500 Mbps, yet a video call on it has an awkward half-second lag. Why?</p>
+<p>The satellite is about 35,786 km above the equator. Your signal goes up and comes back down: roughly 71,500 km. Radio in space travels at the speed of light, 3 × 10⁸ m/s.</p>
+<p>71,500,000 m ÷ 300,000,000 m/s ≈ 0.24 s = <strong>about 240 ms</strong>, from physics alone. The other person's reply needs the same again, which is where the half-second comes from. The 500 Mbps only shrinks transmission delay. It cannot shrink propagation delay.</p>
+</div>
+
+<div class="box example" data-t="Full example — both delays together">
+<p>A 1,500-byte packet crosses one link of 10 Mbps that is 2,000 km long (fibre). Ignore processing and queuing. Find the delay.</p>
+<p><strong>Units first:</strong> 1,500 bytes × 8 = 12,000 bits. 10 Mbps = 10,000,000 bps. 2,000 km = 2,000,000 m.</p>
+<p>Transmission = 12,000 ÷ 10,000,000 = 0.0012 s = 1.2 ms.<br>
+Propagation = 2,000,000 ÷ 200,000,000 = 0.01 s = 10 ms.<br>
+<strong>Total = 1.2 + 10 = 11.2 ms.</strong></p>
+</div>
+<div class="box warn" data-t="Unit traps that cost marks">
+<ul>
+<li><strong>Bytes vs bits.</strong> 1 byte = 8 bits. Packet sizes are often given in bytes; link rates are always in bits per second. Convert before dividing.</li>
+<li><strong>k, M, G in rates</strong> are powers of 10: 1 kbps = 10³, 1 Mbps = 10⁶, 1 Gbps = 10⁹ bps.</li>
+<li><strong>km → m</strong> (× 1,000) and <strong>seconds → ms</strong> (× 1,000).</li>
+</ul>
+</div>
+<div class="box warn" data-t="Don't confuse — transmission vs propagation">
+<div class="tw"><table>
+<thead><tr><th></th><th>Transmission delay</th><th>Propagation delay</th></tr></thead>
+<tbody>
+<tr><th>Formula</th><td>L / R</td><td>d / s</td></tr>
+<tr><th>Depends on</th><td>Packet size, link rate</td><td>Distance, signal speed</td></tr>
+<tr><th>Does <em>not</em> depend on</th><td>Distance</td><td>Packet size, link rate</td></tr>
+<tr><th>Analogy</th><td>Toll booth</td><td>Highway drive</td></tr>
+<tr><th>Fix</th><td>A faster link ("more booths")</td><td>Move the server closer (this is why CDNs exist)</td></tr>
+</tbody></table></div>
+</div>
+
+<h3 id="l2-loss">Packet loss</h3>
+<p>A router keeps waiting packets in a <strong>buffer</strong> (also called a queue). The buffer has a fixed size. If packets arrive faster than the outgoing link can send them, the queue grows. When the buffer is full, the next packet to arrive has nowhere to go and is <strong>dropped</strong>. That is packet loss.</p>
+<figure>
+<div class="flow">
+  <div class="node"><b>Packets arriving fast</b><small>from several links</small></div>
+  <div class="arr">→</div>
+  <div class="node o"><b>Router buffer</b><small>full</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>Slow outgoing link</b></div>
+  <div class="arr">↓</div>
+  <div class="node r"><b>New packet dropped</b><small>buffer overflow</small></div>
+</div>
+</figure>
+<p>A lost packet may be re-sent by the sender (TCP does this) or simply stay lost (UDP). You only need the idea for the exam, not any queue maths.</p>
+
+<h3 id="l2-throughput">Throughput and the bottleneck link</h3>
+<p><strong>Throughput</strong> is the rate (bits per second) at which data actually arrives at the receiver. It is what you really get, not what is advertised.</p>
+<p>A path is a chain of links. Data cannot flow through the chain faster than its slowest link. That slowest link is the <strong>bottleneck link</strong>.</p>
+<div class="formula">end-to-end throughput ≈ min(R₁, R₂, …, Rₙ)</div>
+<figure>
+<div class="flow">
+  <div class="node"><b>Server</b></div>
+  <div class="arr">→<small>10 Mbps</small></div>
+  <div class="node"><b>Router</b></div>
+  <div class="arr" style="color:var(--red)">→<small>2 Mbps</small></div>
+  <div class="node"><b>Router</b></div>
+  <div class="arr">→<small>5 Mbps</small></div>
+  <div class="node"><b>You</b></div>
+</div>
+<figcaption>The 2 Mbps link is the bottleneck. End-to-end throughput is 2 Mbps no matter how fast the other links are.</figcaption>
+</figure>
+<div class="box example" data-t="Worked example">
+<p>You download a 6 MB file over the path above. How long does it take (roughly)?</p>
+<p>File size in bits: 6 MB = 6 × 8 = 48 Mb. Throughput = min(10, 2, 5) = 2 Mbps. Time = 48 ÷ 2 = <strong>24 seconds</strong>.</p>
+</div>
+<div class="box analogy" data-t="Class scenario — &quot;I pay for 300 Mbps. Why is it buffering?&quot;">
+<p>Path: Netflix server → a congested link between networks → your ISP → home WiFi → your TV. The 300 Mbps is only your access link to the ISP. It is one stop on a long path. The real bottleneck may be a congested link between networks, an overloaded server, or very often your own WiFi struggling with walls and interference. When a stream buffers, ask: which hop is the slowest?</p>
+</div>
+<div class="box warn" data-t="Don't confuse">
+<p><strong>Bandwidth / link rate</strong> is the maximum a link <em>can</em> carry. <strong>Throughput</strong> is what you <em>actually</em> receive end to end. <strong>Delay</strong> is how long one packet takes. A path can have high throughput and still high delay (the satellite link).</p>
+</div>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>A 1,000-byte packet is sent on a 4 Mbps link. What is the transmission delay?</summary><p>L = 1,000 × 8 = 8,000 bits. R = 4,000,000 bps. 8,000 ÷ 4,000,000 = 0.002 s = <strong>2 ms</strong>.</p></details>
+<details><summary>A fibre link is 600 km long. What is the propagation delay?</summary><p>600,000 m ÷ 2 × 10⁸ m/s = 0.003 s = <strong>3 ms</strong>.</p></details>
+<details><summary>You upgrade a link from 10 Mbps to 100 Mbps. Which delay changes, and which does not?</summary><p>Transmission delay becomes 10 times smaller (L/R). Propagation delay does not change, because the distance is the same.</p></details>
+<details><summary>A path has links of 50 Mbps, 8 Mbps, 100 Mbps, and 20 Mbps. What is the end-to-end throughput?</summary><p><strong>8 Mbps</strong>, the minimum. The 8 Mbps link is the bottleneck.</p></details>
+<details><summary>Why is packet switching better than circuit switching for web browsing?</summary><p>Web traffic is bursty: a short burst when a page loads, then silence while you read. Circuit switching would keep a path reserved and idle during the silence. Packet switching lets other users use that capacity.</p></details>
+<details><summary>What does "store-and-forward" mean?</summary><p>A router must receive the whole packet before it starts sending it on the next link.</p></details>
+<details><summary>What causes packet loss?</summary><p>A router's buffer is finite. When packets arrive faster than they can be sent out and the buffer is full, arriving packets are dropped.</p></details>
+</div>
+
+<p class="watch" data-topics="packet-vs-circuit delay"><a class="search" href="https://www.youtube.com/results?search_query=transmission+delay+vs+propagation+delay+computer+networks">Search YouTube: transmission vs propagation delay</a></p>
+</section>
+
+<!-- ============================================================ L3 -->
+<section class="lec" id="l3">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 3</span></p>
+  <h2>Lecture 3 — Protocol layers: OSI vs TCP/IP</h2>
+  <p class="oneline">Networking is too big to solve as one problem, so it is split into layers. Each layer does one job and talks only to the layer directly above and below it.</p>
+</header>
+
+<h3>Why layering?</h3>
+<div class="box analogy" data-t="Class analogy — sending a letter">
+<p>You write a letter, put it in an envelope, and give it to the postal service. Does the mail carrier care what the letter says? <strong>No.</strong> The carrier needs only the address on the outside. You need to know how to write a letter and nothing about sorting offices or flight routes. Neither of you understands the other's job, and the letter still arrives.</p>
+<p>If the carrier <em>did</em> read the letter, your privacy would be gone and the carrier would have to understand every kind of message. A layer that looks inside the layer above it stops being a clean layer. This idea comes back with encryption.</p>
+</div>
+<p>Three words from the syllabus:</p>
+<ul>
+<li><strong>Service</strong>: what a layer does for the layer above it. Example: the transport layer offers "reliable delivery".</li>
+<li><strong>Interface</strong>: how the layer above asks for that service. It is the boundary between two layers on the same machine.</li>
+<li><strong>Protocol</strong>: the rules a layer uses to talk to the <em>same</em> layer on the other machine. Example: TCP on your phone talks to TCP on the server.</li>
+</ul>
+<p>What layering buys us:</p>
+<ul>
+<li><strong>Modularity.</strong> Each layer solves one problem and can be understood alone.</li>
+<li><strong>Replaceability.</strong> Swap WiFi for Ethernet and nothing above needs rewriting.</li>
+<li><strong>Interoperability.</strong> Different companies can build different layers and still work together, because the boundaries are agreed in advance.</li>
+<li><strong>Easier debugging.</strong> When something breaks you can find which layer has the fault.</li>
+</ul>
+
+<h3 id="l3-osi">The OSI model (7 layers)</h3>
+<p><strong>OSI</strong> = Open Systems Interconnection, developed by the <strong>ISO</strong> (International Organization for Standardization). It is a <strong>conceptual</strong> model: the model we use to think, teach, and talk ("that's a Layer 4 issue").</p>
+<div class="box note" data-t="Memory aids">
+<p><strong>Top-down (7 → 1):</strong> <u>A</u>ll <u>P</u>eople <u>S</u>eem <u>T</u>o <u>N</u>eed <u>D</u>ata <u>P</u>rocessing — Application, Presentation, Session, Transport, Network, Data Link, Physical.</p>
+<p><strong>Bottom-up (1 → 7):</strong> <u>P</u>lease <u>D</u>o <u>N</u>ot <u>T</u>hrow <u>S</u>ausage <u>P</u>izza <u>A</u>way.</p>
+<p>Learn the numbers too. People say "Layer 3" more often than "Network layer".</p>
+</div>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Layer</th><th>Job in plain words</th><th>Class analogy</th><th>Examples</th></tr></thead>
+<tbody>
+<tr><td>7</td><th>Application</th><td>Gives network services directly to the user's apps</td><td>The waiter: takes your order to the kitchen and brings back food</td><td>HTTP, DNS, SMTP</td></tr>
+<tr><td>6</td><th>Presentation</th><td>Translates, compresses, and encrypts data so the other side can read it</td><td>The translator</td><td>ASCII ↔ Unicode, JPEG/PNG, zip, encryption</td></tr>
+<tr><td>5</td><th>Session</th><td>Starts, manages, and ends a conversation (dialog control, synchronization)</td><td>The judge calling "Order!" / a panel moderator</td><td>Session setup and teardown</td></tr>
+<tr><td>4</td><th>Transport</th><td>Delivery between two programs; reliability; multiplexing</td><td>Many conversations sharing one phone line</td><td>TCP, UDP</td></tr>
+<tr><td>3</td><th>Network</th><td>Logical addressing and routing across different networks: get packets from A to B</td><td>The GPS finding the best route</td><td>IP, routers</td></tr>
+<tr><td>2</td><th>Data Link</th><td>Reliable transfer across <em>one</em> direct link; MAC addresses; error checking; who may transmit ("one at a time!")</td><td>One hop, done correctly</td><td>Ethernet, WiFi, switches</td></tr>
+<tr><td>1</td><th>Physical</th><td>Moves raw bits (0s and 1s) over a medium</td><td>The roads and wires</td><td>Coax, fibre, radio waves</td></tr>
+</tbody></table></div>
+<div class="box warn" data-t="Don't confuse — Layer 2 vs Layer 3">
+<p><strong>Layer 3</strong> worries about the <strong>whole journey</strong> across many networks, using IP addresses. <strong>Layer 2</strong> worries only about getting safely to the <strong>other end of one link</strong>, using MAC addresses.</p>
+</div>
+
+<h3 id="l3-tcpip">The TCP/IP model</h3>
+<p>The <strong>TCP/IP model</strong> is the one the Internet actually runs on. It was developed by <strong>DARPA</strong> (the US Defense Advanced Research Projects Agency). OSI is the model we think with; TCP/IP is the working system.</p>
+<div class="box warn" data-t="4 layers or 5? Both appear — know why">
+<p>The class notes compare OSI with a <strong>4-layer</strong> TCP/IP model (the bottom two layers merged into one "Network Access" layer). The syllabus and the textbook (Kurose &amp; Ross) use a <strong>5-layer</strong> version that keeps Link and Physical separate. They are the same model drawn two ways. If the question says "TCP/IP 5-layer model", list five. If it asks for the OSI-vs-TCP/IP comparison table from class, write "4 layers".</p>
+</div>
+<div class="tw"><table>
+<thead><tr><th>OSI (7)</th><th>TCP/IP (5-layer)</th><th>TCP/IP (4-layer)</th><th>PDU name</th><th>Address used</th><th>Protocols</th></tr></thead>
+<tbody>
+<tr><td>7 Application<br>6 Presentation<br>5 Session</td><th>Application</th><td>Application</td><td><strong>Message</strong></td><td>—</td><td>HTTP, DNS, SMTP</td></tr>
+<tr><td>4 Transport</td><th>Transport</th><td>Transport</td><td><strong>Segment</strong></td><td>Port number</td><td>TCP, UDP</td></tr>
+<tr><td>3 Network</td><th>Network</th><td>Internet</td><td><strong>Datagram</strong> (packet)</td><td>IP address</td><td>IP</td></tr>
+<tr><td>2 Data Link</td><th>Link</th><td rowspan="2">Network Access</td><td><strong>Frame</strong></td><td>MAC address</td><td>Ethernet, WiFi</td></tr>
+<tr><td>1 Physical</td><th>Physical</th><td><strong>Bits</strong></td><td>—</td><td>Cables, radio</td></tr>
+</tbody></table></div>
+<p><strong>PDU</strong> means Protocol Data Unit: the name for "a chunk of data" at each layer. Memorise the order top to bottom: <strong>Message → Segment → Datagram → Frame → Bits</strong>.</p>
+
+<div class="tw"><table>
+<thead><tr><th></th><th>OSI model</th><th>TCP/IP model</th></tr></thead>
+<tbody>
+<tr><th>Full form</th><td>Open Systems Interconnection</td><td>Transmission Control Protocol / Internet Protocol</td></tr>
+<tr><th>Layers</th><td>7</td><td>4 (or 5 in the textbook version)</td></tr>
+<tr><th>Developed by</th><td>ISO</td><td>DARPA</td></tr>
+<tr><th>Nature</th><td>A conceptual model, used to teach and reason</td><td>Used in actual data transmission on the Internet</td></tr>
+</tbody></table></div>
+
+<h3 id="l3-encap">Encapsulation and decapsulation</h3>
+<div class="box analogy" data-t="Class analogy — nesting dolls and gift wrap">
+<p>Like a set of nesting dolls: each layer puts the data from the layer above inside its own wrapper. Or like gift wrap: paper, then a box, then ribbon going out, and you unwrap in exactly the reverse order on receipt. You cannot untie the ribbon last.</p>
+</div>
+<p><strong>Encapsulation</strong> (sender, going <em>down</em> the layers): each layer adds its own <strong>header</strong> in front of what it received from above.</p>
+<p><strong>Decapsulation</strong> (receiver, going <em>up</em>): each layer removes its own header and passes the rest upward.</p>
+<figure>
+<div class="encap">
+  <div class="row"><div class="lbl"><b>Application</b><small>message</small></div><div class="pdu"><span class="sp" style="--w:51%"></span><span class="d">HTTP data</span><span class="sp" style="--w:13%"></span></div></div>
+  <div class="row"><div class="lbl"><b>Transport</b><small>segment</small></div><div class="pdu"><span class="sp" style="--w:34%"></span><span class="h4">TCP<em> hdr</em></span><span class="d">HTTP data</span><span class="sp" style="--w:13%"></span></div></div>
+  <div class="row"><div class="lbl"><b>Network</b><small>datagram</small></div><div class="pdu"><span class="sp" style="--w:17%"></span><span class="h3">IP<em> hdr</em></span><span class="h4">TCP<em> hdr</em></span><span class="d">HTTP data</span><span class="sp" style="--w:13%"></span></div></div>
+  <div class="row"><div class="lbl"><b>Link</b><small>frame</small></div><div class="pdu"><span class="h2">Eth<em> hdr</em></span><span class="h3">IP<em> hdr</em></span><span class="h4">TCP<em> hdr</em></span><span class="d">HTTP data</span><span class="t2">tr<em>ai</em>l<em>er</em></span></div></div>
+  <div class="row"><div class="lbl"><b>Physical</b><small>bits</small></div><div class="pdu"><span class="d" style="background:var(--surface-2);color:var(--muted);font-family:var(--mono)">0101101001011100101001011010…</span></div></div>
+</div>
+<figcaption>Going down, each layer adds a header on the left. The link layer also adds a trailer for error checking. Going up at the receiver, the headers come off in reverse order.</figcaption>
+</figure>
+<p>The important property is <strong>symmetry</strong>: the network layer on the receiver reads exactly the header that the network layer on the sender wrote, and does not touch anything belonging to another layer. This is also why a packet captured in Wireshark looks like nested headers followed by your data.</p>
+
+<h3 id="l3-devices">Which device works at which layer?</h3>
+<p>A device "operates at layer N" if N is the highest layer whose header it reads.</p>
+<div class="tw"><table>
+<thead><tr><th>Device</th><th>Highest layer it reads</th><th>What it looks at</th></tr></thead>
+<tbody>
+<tr><th>Host (phone, laptop, server)</th><td>Layer 7, so all layers</td><td>Everything: it runs the apps</td></tr>
+<tr><th>Router</th><td>Layer 3 (Network)</td><td>IP address. It ignores TCP/UDP and the app data.</td></tr>
+<tr><th>Switch</th><td>Layer 2 (Link)</td><td>MAC address. It does not understand IP.</td></tr>
+<tr><th>Hub / cable</th><td>Layer 1 (Physical)</td><td>Nothing. It just repeats bits.</td></tr>
+</tbody></table></div>
+<figure>
+<div class="flow">
+  <div class="node a"><b>Host</b><small>App · Transport · Network · Link · Physical</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>Switch</b><small>Link · Physical</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>Router</b><small>Network · Link · Physical</small></div>
+  <div class="arr">→</div>
+  <div class="node"><b>Switch</b><small>Link · Physical</small></div>
+  <div class="arr">→</div>
+  <div class="node g"><b>Host</b><small>App · Transport · Network · Link · Physical</small></div>
+</div>
+<figcaption>Only the two hosts open the packet all the way. A router opens it up to the IP header, then wraps it in a new frame for the next link.</figcaption>
+</figure>
+
+<aside class="box aws" data-t="AWS mirror — the same layers in the cloud">
+<div class="tw"><table>
+<thead><tr><th>Layer</th><th>AWS service</th><th>Why it sits at that layer</th></tr></thead>
+<tbody>
+<tr><th>L7 Application</th><td>Route 53 (DNS), Application Load Balancer (ALB)</td><td>They understand application protocols: DNS names, HTTP URLs and headers</td></tr>
+<tr><th>L4 Transport</th><td>Network Load Balancer (NLB)</td><td>It forwards by IP + port (TCP/UDP) and does not read HTTP</td></tr>
+<tr><th>L3 Network</th><td>VPC route tables, Internet Gateway (IGW)</td><td>They decide where IP packets go</td></tr>
+</tbody></table></div>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Write the PDU name at each of the five TCP/IP layers.</summary><p>Application: message. Transport: segment. Network: datagram. Link: frame. Physical: bits.</p></details>
+<details><summary>Which OSI layers are merged into the TCP/IP Application layer?</summary><p>Application (7), Presentation (6), and Session (5).</p></details>
+<details><summary>A device forwards data using MAC addresses and does not understand IP. Which device and which layer?</summary><p>A switch, Layer 2 (Data Link).</p></details>
+<details><summary>What is added during encapsulation, and in which direction?</summary><p>Each layer adds its own header (the link layer also adds a trailer) as the data moves <em>down</em> the sender's layers.</p></details>
+<details><summary>Give two benefits of layering.</summary><p>Any two of: modularity (each layer solves one problem), a layer can be replaced without changing others, interoperability between vendors, easier fault-finding.</p></details>
+<details><summary>Encryption and compression belong to which OSI layer?</summary><p>Layer 6, Presentation.</p></details>
+<details><summary>Who developed OSI, and who developed TCP/IP?</summary><p>OSI: ISO. TCP/IP: DARPA.</p></details>
+</div>
+
+<p class="watch" data-topics="osi-model tcpip-encapsulation"><a class="search" href="https://www.youtube.com/results?search_query=OSI+model+vs+TCP+IP+model+explained">Search YouTube: OSI vs TCP/IP model explained</a></p>
+</section>
+
+<!-- ============================================================ L4 -->
+<section class="lec" id="l4">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 4</span></p>
+  <h2>Lecture 4 — Network devices, topologies, and AWS VPC</h2>
+  <p class="oneline">Each networking device is defined by how deep into the packet it looks: a hub looks at nothing, a switch at the MAC address, a router at the IP address.</p>
+</header>
+
+<h3>Why do we need network devices at all?</h3>
+<p>Suppose every computer must reach every other, and you join each pair with its own cable. For n devices you need:</p>
+<div class="formula">cables = n (n − 1) / 2</div>
+<div class="tw"><table>
+<thead><tr><th>Devices (n)</th><th>Calculation</th><th class="num">Cables</th></tr></thead>
+<tbody>
+<tr><td>3</td><td>3 × 2 / 2</td><td class="num">3</td></tr>
+<tr><td>10</td><td>10 × 9 / 2</td><td class="num">45</td></tr>
+<tr><td>100</td><td>100 × 99 / 2</td><td class="num">4,950</td></tr>
+<tr><td>1,000</td><td>1,000 × 999 / 2</td><td class="num">499,500</td></tr>
+</tbody></table></div>
+<p>Ten times the devices needs about a hundred times the cabling. This cannot work in a real office.</p>
+<p><strong>The fix:</strong> instead of connecting everyone to everyone, connect everyone to <strong>one device in the middle</strong>. Now n devices need only n cables. The rest of this lecture is about what that middle device should be.</p>
+
+<h3 id="l4-devices">The devices</h3>
+<h4>Hub — Layer 1 (the 1980s answer)</h4>
+<ul>
+<li>Takes the signal arriving on one port and <strong>repeats it out of every other port</strong>.</li>
+<li>Does not understand MAC addresses or anything else.</li>
+<li><strong>Problem (asked in class):</strong> unnecessary traffic. Every machine receives data meant for one machine, and while that traffic fills the shared wire, nobody else can send. More devices make it worse.</li>
+</ul>
+<h4>Switch — Layer 2 (the 1990s answer)</h4>
+<ul>
+<li>Connects devices inside one LAN and forwards a frame <strong>only to the correct port</strong>, using <strong>MAC addresses</strong>.</li>
+<li>"A hub with a memory": it learns which MAC address is behind which port.</li>
+<li>Has no understanding of IP, so it <strong>cannot reach another network</strong>.</li>
+</ul>
+<h4>Router — Layer 3</h4>
+<ul>
+<li>Routes data <strong>between different networks</strong> using <strong>IP addresses</strong>.</li>
+<li>This is the GPS from Lecture 3: it knows routes to places beyond the local link.</li>
+</ul>
+<h4>Firewall — Layers 3–4 (and up to 7)</h4>
+<ul>
+<li>A security device that watches traffic entering and leaving a network and lets only authorised traffic through.</li>
+<li>Basic <strong>packet filtering</strong> decides using four values: source IP, destination IP (Layer 3), source port, destination port (Layer 4). It does not examine the data. More advanced firewalls look higher, up to Layer 7.</li>
+</ul>
+<h4>Load balancer — Layer 4 or Layer 7</h4>
+<ul>
+<li>Spreads incoming requests across several servers so no single server is overwhelmed.</li>
+<li>Link to Lecture 2: it is what you build when the bottleneck is a <em>server</em> instead of a link.</li>
+<li>Layer 4 version = forwards by IP and port. Layer 7 version = reads HTTP. Details in <a href="03-transport-layer.html#l12">Lecture 12</a>.</li>
+</ul>
+
+<div class="box exam" data-t="Memorise this table">
+<div class="tw"><table>
+<thead><tr><th>Device</th><th>Layer</th><th>Decides using</th><th>Scope</th></tr></thead>
+<tbody>
+<tr><th>Hub</th><td>L1 Physical</td><td>Nothing; repeats to every port</td><td>One LAN</td></tr>
+<tr><th>Switch</th><td>L2 Data Link</td><td>MAC address</td><td>Within one LAN</td></tr>
+<tr><th>Router</th><td>L3 Network</td><td>IP address</td><td>Between networks</td></tr>
+<tr><th>Firewall</th><td>L3–L4 (up to L7)</td><td>IP addresses and ports; advanced ones inspect more</td><td>Network border</td></tr>
+<tr><th>Load balancer</th><td>L4 or L7</td><td>Which server should get this request</td><td>In front of servers</td></tr>
+<tr><th>Wireless router / access point</th><td>L1–L3 depending on role</td><td>Gives wireless access to the network</td><td>Home / office</td></tr>
+</tbody></table></div>
+</div>
+
+<h3 id="l4-domains">Collision domains and broadcast domains</h3>
+<p>A light-touch topic, but a common short question.</p>
+<ul>
+<li><strong>Collision domain</strong>: a group of devices where, if two send at the same moment, their signals crash into each other.</li>
+<li><strong>Broadcast domain</strong>: a group of devices that all receive a broadcast message (one addressed to "everyone").</li>
+</ul>
+<div class="tw"><table>
+<thead><tr><th>Device</th><th>Collision domains</th><th>Broadcast domains</th></tr></thead>
+<tbody>
+<tr><th>Hub</th><td>All ports share <strong>one</strong></td><td>One</td></tr>
+<tr><th>Switch</th><td><strong>One per port</strong> (it breaks them up)</td><td>One (it still forwards broadcasts to all ports)</td></tr>
+<tr><th>Router</th><td>One per port</td><td><strong>One per port</strong> (it does not forward broadcasts)</td></tr>
+</tbody></table></div>
+<p>Short version: <strong>switches break collision domains; routers break broadcast domains; hubs break neither.</strong></p>
+<div class="box example" data-t="Worked example">
+<p>A router has 2 ports. Each port goes to a switch with 4 PCs. How many collision and broadcast domains?</p>
+<p>Broadcast domains = 2 (one per router port). Collision domains = one for every switch port in use: each switch has 4 PC ports + 1 port to the router = 5, so 5 + 5 = <strong>10</strong>.</p>
+</div>
+
+<h3 id="l4-topologies">Network topologies</h3>
+<p>A <strong>topology</strong> is the arrangement of devices and the connections between them.</p>
+<figure>
+<div class="svgw"><svg viewBox="0 0 640 172" role="img" aria-label="Four network topologies: star, mesh, bus, ring">
+  <g class="ln2">
+    <path d="M80 80L80 30M80 80L127.6 64.5M80 80L109.4 120.5M80 80L50.6 120.5M80 80L32.4 64.5"/>
+    <path d="M240 30L287.6 64.5L269.4 120.5L210.6 120.5L192.4 64.5ZM240 30L269.4 120.5M240 30L210.6 120.5M287.6 64.5L210.6 120.5M287.6 64.5L192.4 64.5M269.4 120.5L192.4 64.5"/>
+    <path d="M345 80L455 80M365 80L365 48M400 80L400 112M435 80L435 48"/>
+    <path d="M560 30L607.6 64.5L589.4 120.5L530.6 120.5L512.4 64.5Z"/>
+  </g>
+  <rect class="ndo" x="68" y="68" width="24" height="24" rx="5"/>
+  <g class="nd">
+    <circle cx="80" cy="30" r="8"/><circle cx="127.6" cy="64.5" r="8"/><circle cx="109.4" cy="120.5" r="8"/><circle cx="50.6" cy="120.5" r="8"/><circle cx="32.4" cy="64.5" r="8"/>
+    <circle cx="240" cy="30" r="8"/><circle cx="287.6" cy="64.5" r="8"/><circle cx="269.4" cy="120.5" r="8"/><circle cx="210.6" cy="120.5" r="8"/><circle cx="192.4" cy="64.5" r="8"/>
+    <circle cx="365" cy="42" r="8"/><circle cx="400" cy="118" r="8"/><circle cx="435" cy="42" r="8"/>
+    <circle cx="560" cy="30" r="8"/><circle cx="607.6" cy="64.5" r="8"/><circle cx="589.4" cy="120.5" r="8"/><circle cx="530.6" cy="120.5" r="8"/><circle cx="512.4" cy="64.5" r="8"/>
+  </g>
+  <text class="t" x="80" y="160" text-anchor="middle" font-weight="700">Star</text>
+  <text class="t" x="240" y="160" text-anchor="middle" font-weight="700">Mesh</text>
+  <text class="t" x="400" y="160" text-anchor="middle" font-weight="700">Bus</text>
+  <text class="t" x="560" y="160" text-anchor="middle" font-weight="700">Ring</text>
+</svg></div>
+<figcaption>Star: everyone connects to a central switch. Mesh: everyone connects to everyone. Bus: everyone taps one shared cable. Ring: each device connects to two neighbours.</figcaption>
+</figure>
+<div class="tw"><table>
+<thead><tr><th>Topology</th><th>How it is wired</th><th>Good</th><th>Bad</th></tr></thead>
+<tbody>
+<tr><th>Star</th><td>All devices connect to one central hub or switch</td><td>Easy to set up and to diagnose (one obvious place to look); cheap; grows easily. Popular for LANs.</td><td>The centre is a <strong>single point of failure</strong></td></tr>
+<tr><th>Mesh</th><td>Every device connects directly to every other</td><td>Very reliable: many paths, so if one fails data takes another</td><td>Costly: n(n−1)/2 links ("spaghetti network")</td></tr>
+<tr><th>Hybrid / tiered</th><td>Two or more topologies combined (for example several stars joined by a partial mesh)</td><td>Gets the benefits of each; fits different needs in different parts</td><td>Complex to design and manage</td></tr>
+<tr><th>Bus</th><td>All devices on one shared cable</td><td>Very little cable</td><td>Cable break stops everyone; collisions</td></tr>
+<tr><th>Ring</th><td>Each device linked to two neighbours in a circle</td><td>Orderly, predictable</td><td>One break can stop the ring</td></tr>
+</tbody></table></div>
+<div class="two">
+<div class="tw"><table>
+<thead><tr><th>Environment</th><th>Topology</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>Small office</td><th>Star</th><td>Easy setup, central control</td></tr>
+<tr><td>Smart home</td><th>Mesh</th><td>Reliable device-to-device links (wireless, so no cable cost)</td></tr>
+<tr><td>Data centre</td><th>Hybrid</th><td>Combines benefits</td></tr>
+</tbody></table></div>
+<div class="tw"><table>
+<thead><tr><th>Topology</th><th>Fault tolerance</th><th>Scalability</th></tr></thead>
+<tbody>
+<tr><th>Star</th><td>Medium</td><td>Good</td></tr>
+<tr><th>Mesh</th><td>High</td><td>Excellent</td></tr>
+<tr><th>Hybrid</th><td>High</td><td>Hard</td></tr>
+</tbody></table></div>
+</div>
+<p>The trade-off is always <strong>cost vs resilience</strong>. More links cost more and survive more failures. "Which topology is best?" has no answer without "best for what, at what size, at what cost?".</p>
+
+<h3 id="l4-cloud">The cloud network: Region, AZ, Edge Location, VPC</h3>
+<p>In the cloud the logic stays the same (same layers, same devices, same topologies). Only the way you build it changes: it is <strong>software-defined</strong>.</p>
+<div class="tw"><table>
+<thead><tr><th>Traditional</th><th>Cloud era</th></tr></thead>
+<tbody>
+<tr><td>Physical box</td><td>Virtual instance</td></tr>
+<tr><td>Copper cables</td><td>Virtualised overlays</td></tr>
+<tr><td>Manual wiring</td><td>API calls or console clicks</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>Region</strong>: an isolated geographic area (for example Mumbai) with several data-centre clusters. There are 30+ worldwide, joined by AWS's own fast backbone.</li>
+<li><strong>Availability Zone (AZ)</strong>: one or more separate data centres with their own power and networking. It is an <strong>isolated fault domain</strong>. Deploy in two or more AZs and your app survives a fire, flood, or power failure at one site.</li>
+<li><strong>Edge Location</strong>: a CDN endpoint that caches content close to users. It shortens <em>d</em> in d/s, so propagation delay falls (Lecture 2 made real).</li>
+</ul>
+<p><strong>VPC (Virtual Private Cloud)</strong>: your own private, software-defined network inside AWS. It is logically isolated from other customers. You choose the IP address range, the subnets, and the routing.</p>
+<ul>
+<li>A <strong>subnet</strong> is a slice of the VPC's address range. Each subnet lives in exactly one AZ.</li>
+<li>A <strong>route table</strong> is a list of rules saying where traffic goes.</li>
+<li>An <strong>Internet Gateway (IGW)</strong> is the door between the VPC and the Internet.</li>
+</ul>
+<figure>
+<div class="nest region"><span class="cap">Region (e.g. us-east-1)</span>
+  <div class="nest vpc"><span class="cap">Default VPC · 172.31.0.0/16</span>
+    <div class="grid2">
+      <div class="nest az"><span class="cap">AZ a</span><div class="nest pub"><span class="cap">Default subnet</span><span class="chip">172.31.0.0/20</span><span class="chip">EC2</span></div></div>
+      <div class="nest az"><span class="cap">AZ b</span><div class="nest pub"><span class="cap">Default subnet</span><span class="chip">172.31.16.0/20</span><span class="chip">EC2</span></div></div>
+    </div>
+    <p class="small" style="margin:10px 0 0"><span class="chip">Route table: 172.31.0.0/16 → local · 0.0.0.0/0 → IGW</span> <span class="chip">Internet Gateway</span> <span class="chip">Default security group</span> <span class="chip">Default network ACL</span></p>
+  </div>
+</div>
+<figcaption>What you find in the VPC console in a new account: the default VPC and its parts.</figcaption>
+</figure>
+<aside class="box aws" data-t="Default VPC components (lab: identify these in the console)">
+<ul>
+<li><strong>One default VPC per Region</strong>, with the address range <code>172.31.0.0/16</code>.</li>
+<li><strong>One default subnet in each AZ</strong> (each a <code>/20</code>). They are public subnets.</li>
+<li><strong>A main route table</strong> with two routes: the VPC's own range → <code>local</code>, and <code>0.0.0.0/0</code> (everything else) → the Internet Gateway.</li>
+<li><strong>An Internet Gateway</strong> already attached.</li>
+<li>A default <strong>security group</strong> and a default <strong>network ACL</strong> (firewalls; covered in <a href="05-routing-security.html#sg-nacl">part 5</a>).</li>
+</ul>
+<p class="small">The <code>/16</code> and <code>/20</code> are CIDR notation, explained in <a href="04-ip-addressing.html#l13">Lecture 13</a>. For now: you are given a block of addresses and you decide how to cut it up.</p>
+</aside>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>How many cables are needed to connect 20 computers directly to each other (full mesh)?</summary><p>20 × 19 / 2 = <strong>190</strong>.</p></details>
+<details><summary>What is the main problem with a hub?</summary><p>It broadcasts every incoming signal to all ports, so every device gets traffic not meant for it and the shared medium is busy. Congestion grows as devices are added.</p></details>
+<details><summary>Why can't a switch connect two different networks?</summary><p>It works at Layer 2 and only understands MAC addresses. Reaching another network needs IP addresses, which is the router's job (Layer 3).</p></details>
+<details><summary>Which device breaks up broadcast domains?</summary><p>A router. A switch breaks up collision domains only.</p></details>
+<details><summary>Star vs mesh: which is cheaper, and which is more fault tolerant?</summary><p>Star is cheaper (n links). Mesh is more fault tolerant (many alternative paths) but needs n(n−1)/2 links.</p></details>
+<details><summary>What is the difference between a Region and an Availability Zone?</summary><p>A Region is a geographic area. An AZ is one or more isolated data centres inside a Region. A Region contains several AZs.</p></details>
+<details><summary>What is a VPC?</summary><p>A private, logically isolated, software-defined network inside AWS where you control the IP range, subnets, and routing.</p></details>
+<details><summary>Which four values does a basic packet-filtering firewall check?</summary><p>Source IP, destination IP, source port, destination port.</p></details>
+</div>
+
+<p class="watch" data-topics="hub-switch-router topologies aws-vpc"><a class="search" href="https://www.youtube.com/results?search_query=hub+vs+switch+vs+router+explained">Search YouTube: hub vs switch vs router</a></p>
+</section>
+
+<div class="pager"><a href="index.html">← Home</a><a href="02-application-layer.html">Next: Application layer →</a></div>
+
+</main>
+</div>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>

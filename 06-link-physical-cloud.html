@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6 · Link Layer, Physical Layer, Cloud at Scale — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="On this page"></nav>
+<main>
+
+<p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Weeks 11–12</span></p>
+<h1>The Physical Foundation and Cloud at Scale</h1>
+<p class="lede">Not in the mid-sem. The bottom two layers: how a frame crosses one link, how errors are caught, and how bits become signals. Then the AWS services that join many networks together.</p>
+<div class="box note" data-t="How complete is this page?">
+<p>These lectures had not been delivered when the notes were made, so this page follows the syllabus bullets and the textbook. It gives you a head start; extend it with your instructor's examples later.</p>
+</div>
+
+<!-- ============================================================ link -->
+<section class="lec" id="link">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span></p>
+  <h2>Data link layer: MAC addresses, ARP, Ethernet, CSMA/CD</h2>
+  <p class="oneline">The link layer moves a frame across one hop, from one device to the next on the same network, using MAC addresses.</p>
+</header>
+
+<h3 id="mac">MAC addresses</h3>
+<ul>
+<li>A <strong>MAC address</strong> is a <strong>48-bit</strong> hardware address built into every network card, written as 12 hex digits: <code>00:1A:2B:3C:4D:5E</code>.</li>
+<li>The first 24 bits identify the manufacturer; the last 24 are the card's serial number.</li>
+<li>It is used only <strong>within one local network</strong>. It changes at every hop; the IP address stays the same end to end.</li>
+</ul>
+<div class="tw"><table>
+<thead><tr><th></th><th>MAC address</th><th>IP address</th></tr></thead>
+<tbody>
+<tr><th>Layer</th><td>2 (Link)</td><td>3 (Network)</td></tr>
+<tr><th>Size</th><td>48 bits, hex</td><td>32 bits (IPv4), dotted decimal</td></tr>
+<tr><th>Assigned by</th><td>The manufacturer (fixed to the card)</td><td>The network (DHCP); changes when you move</td></tr>
+<tr><th>Scope</th><td>One hop</td><td>The whole journey</td></tr>
+<tr><th>Analogy</th><td>Your Aadhaar number: yours for life</td><td>Your postal address: depends where you live</td></tr>
+</tbody></table></div>
+
+<h3 id="arp">ARP — Address Resolution Protocol</h3>
+<p>To send a frame to a device on the same network, you need its MAC address, but you only know its IP. <strong>ARP translates IP address → MAC address.</strong></p>
+<div class="ladder">
+  <div class="ends"><span>Host A (wants 192.168.1.5)</span><span>Everyone on the LAN</span></div>
+  <div class="lines">
+    <div class="msg r"><b>ARP request</b> (broadcast)<small>"Who has 192.168.1.5? Tell 192.168.1.2."</small></div>
+    <div class="msg l g"><b>ARP reply</b> (unicast, from the owner only)<small>"192.168.1.5 is at 00:1A:2B:3C:4D:5E."</small></div>
+    <div class="gap">A stores the answer in its ARP cache and sends the frame</div>
+  </div>
+</div>
+<p>If the destination is on <em>another</em> network, the host ARPs for its <strong>default gateway's</strong> MAC instead and sends the frame to the router. View your cache with <code>arp -a</code>.</p>
+<div class="box warn" data-t="Don't confuse">
+<p><strong>DNS:</strong> name → IP address. <strong>ARP:</strong> IP address → MAC address. <strong>DHCP:</strong> gives a device its IP address in the first place.</p>
+</div>
+
+<h3 id="ethernet">Ethernet and framing</h3>
+<p><strong>Framing</strong> means wrapping a datagram with a header and trailer so the receiver knows where a frame starts and ends.</p>
+<figure>
+<div class="scrollx"><div class="encap"><div class="row"><div class="pdu">
+  <span class="t2" style="flex:0 0 14%">Preamble</span><span class="h2">Dest MAC</span><span class="h2" style="background:var(--net-bg);color:var(--net)">Src MAC</span><span class="h4" style="flex:0 0 10%">Type</span><span class="d">Payload (IP datagram, 46–1500 bytes)</span><span class="t2" style="flex:0 0 12%">FCS</span>
+</div></div></div></div>
+<figcaption>An Ethernet frame. Preamble = a wake-up pattern for the receiver. Type = which network protocol is inside (IPv4, ARP…). FCS = Frame Check Sequence, a CRC-32 for error detection.</figcaption>
+</figure>
+
+<h3 id="csmacd">CSMA/CD — sharing one wire</h3>
+<p>On a shared wire (old Ethernet with hubs), two devices sending at once cause a <strong>collision</strong>. Ethernet's rule is <strong>CSMA/CD</strong>: Carrier Sense Multiple Access with Collision Detection.</p>
+<ol class="steps">
+<li><strong>Carrier sense:</strong> listen first. If the wire is busy, wait.</li>
+<li><strong>Transmit</strong> when it is idle, and keep listening while sending.</li>
+<li><strong>Collision detect:</strong> if you hear another signal mixed with yours, stop at once and send a short <strong>jam signal</strong> so everyone knows.</li>
+<li><strong>Back off:</strong> wait a <strong>random</strong> time, then try again. After each repeated collision the random range doubles (<strong>binary exponential backoff</strong>).</li>
+</ol>
+<div class="box analogy" data-t="Analogy">
+<p>A polite dinner conversation: wait for silence before speaking; if two people start together, both stop and each waits a random moment before trying again.</p>
+</div>
+<p class="small muted">Modern switched Ethernet is full-duplex with one device per port, so collisions no longer happen and CSMA/CD is rarely active. It is still examined.</p>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>How long is a MAC address and how is it written?</summary><p>48 bits, as 12 hexadecimal digits in six pairs.</p></details>
+<details><summary>What does ARP do, and which message is a broadcast?</summary><p>It finds the MAC address for a known IP address. The request is a broadcast; the reply is unicast.</p></details>
+<details><summary>What does a station do when it detects a collision in CSMA/CD?</summary><p>Stops transmitting, sends a jam signal, waits a random backoff time, and retries.</p></details>
+<details><summary>As a packet crosses three routers, which changes at each hop: the MAC addresses or the IP addresses?</summary><p>The MAC addresses (a new frame for each link). The source and destination IP addresses stay the same (unless NAT is involved).</p></details>
+</div>
+<p class="watch" data-topics="mac-arp ethernet-csma-cd"><a class="search" href="https://www.youtube.com/results?search_query=MAC+address+ARP+explained">Search YouTube: MAC addresses and ARP</a></p>
+</section>
+
+<!-- ============================================================ wifi -->
+<section class="lec" id="wifi">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span></p>
+  <h2>WiFi: 802.11 standards, CSMA/CA, WPA2/WPA3</h2>
+  <p class="oneline">WiFi cannot hear collisions the way a wire can, so instead of detecting them it tries hard to avoid them.</p>
+</header>
+<h3>802.11 standards</h3>
+<div class="tw"><table>
+<thead><tr><th>Standard</th><th>Marketing name</th><th>Band</th><th>Top speed (approx.)</th></tr></thead>
+<tbody>
+<tr><td>802.11b</td><td>—</td><td>2.4 GHz</td><td>11 Mbps</td></tr>
+<tr><td>802.11a / g</td><td>—</td><td>5 GHz / 2.4 GHz</td><td>54 Mbps</td></tr>
+<tr><td>802.11n</td><td>Wi-Fi 4</td><td>2.4 and 5 GHz</td><td>600 Mbps</td></tr>
+<tr><td>802.11ac</td><td>Wi-Fi 5</td><td>5 GHz</td><td>Several Gbps</td></tr>
+<tr><td>802.11ax</td><td>Wi-Fi 6 / 6E</td><td>2.4, 5 (and 6) GHz</td><td>About 9.6 Gbps</td></tr>
+</tbody></table></div>
+<p><strong>2.4 GHz</strong> travels farther and through walls but is slower and crowded. <strong>5 GHz</strong> is faster with shorter range.</p>
+
+<h3 id="csmaca">CSMA/CA — collision avoidance</h3>
+<p>A radio cannot listen while it transmits (its own signal drowns everything), and two stations may both reach the access point but not hear each other (the <strong>hidden terminal</strong> problem). So collision <em>detection</em> is impossible; WiFi uses collision <strong>avoidance</strong>.</p>
+<ol class="steps">
+<li>Listen. If the channel is idle, wait a short fixed time, then also wait a <strong>random backoff</strong> before sending.</li>
+<li>Send the <strong>whole</strong> frame (no stopping midway).</li>
+<li>The receiver replies with a link-layer <strong>ACK</strong>. No ACK → assume a collision → back off longer and re-send.</li>
+<li>Optional <strong>RTS/CTS</strong>: send a small "Request To Send"; the access point answers "Clear To Send", which every station hears, so the others stay quiet. This solves hidden terminals.</li>
+</ol>
+<div class="tw"><table>
+<thead><tr><th></th><th>CSMA/CD</th><th>CSMA/CA</th></tr></thead>
+<tbody>
+<tr><th>Used in</th><td>Wired Ethernet (shared)</td><td>WiFi (802.11)</td></tr>
+<tr><th>Strategy</th><td><strong>Detect</strong> collisions, then recover</td><td><strong>Avoid</strong> collisions before sending</td></tr>
+<tr><th>During a collision</th><td>Stops immediately</td><td>Cannot tell; learns from a missing ACK</td></tr>
+<tr><th>Extra tools</th><td>Jam signal</td><td>Random backoff first, ACKs, RTS/CTS</td></tr>
+</tbody></table></div>
+
+<h3>WiFi security</h3>
+<div class="tw"><table>
+<thead><tr><th></th><th>WPA2</th><th>WPA3</th></tr></thead>
+<tbody>
+<tr><th>Encryption</th><td>AES (CCMP)</td><td>AES, stronger modes</td></tr>
+<tr><th>Password handshake</th><td>4-way handshake with a pre-shared key; a captured handshake can be attacked offline with password guesses</td><td><strong>SAE</strong> ("Dragonfly"): resists offline guessing</td></tr>
+<tr><th>Forward secrecy</th><td>No</td><td>Yes: old traffic stays safe even if the password leaks later</td></tr>
+</tbody></table></div>
+<p class="small muted">Older WEP and WPA are broken and should not be used.</p>
+<p class="watch" data-topics="wifi-csma-ca"><a class="search" href="https://www.youtube.com/results?search_query=CSMA+CA+vs+CSMA+CD+explained">Search YouTube: CSMA/CA vs CSMA/CD</a></p>
+</section>
+
+<!-- ============================================================ crc -->
+<section class="lec" id="crc">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span><span class="tag warn">Numericals likely</span></p>
+  <h2>Error detection: parity, checksum, CRC</h2>
+  <p class="oneline">The sender adds a few extra bits computed from the data; the receiver recomputes them, and a mismatch means the data was damaged.</p>
+</header>
+<div class="tw"><table>
+<thead><tr><th>Method</th><th>How</th><th>Strength</th><th>Used in</th></tr></thead>
+<tbody>
+<tr><th>Parity bit</th><td>Add one bit so the total number of 1s is even (or odd)</td><td>Catches any odd number of flipped bits; misses an even number</td><td>Simple serial links</td></tr>
+<tr><th>Checksum</th><td>Add the data as numbers, send the complement of the sum (see <a href="03-transport-layer.html#l10-tools">Lecture 10</a>)</td><td>Moderate</td><td>IP, TCP, UDP</td></tr>
+<tr><th>CRC</th><td>Treat the data as a binary number, divide by an agreed generator, send the remainder</td><td>Strong; catches bursts of errors</td><td>Ethernet, WiFi (link layer)</td></tr>
+</tbody></table></div>
+
+<h3>CRC step by step</h3>
+<ol class="steps">
+<li>Sender and receiver agree on a <strong>generator</strong> G of r + 1 bits.</li>
+<li>Append <strong>r zeros</strong> to the data.</li>
+<li>Divide by G using <strong>modulo-2 division</strong>: subtraction is XOR, with no carries or borrows.</li>
+<li>The <strong>remainder</strong> (r bits) is the CRC. Send data + CRC.</li>
+<li>The receiver divides what it got by G. <strong>Remainder 0 → accept.</strong> Anything else → error.</li>
+</ol>
+<div class="box example" data-t="Worked example — data 100100, generator 1101">
+<p>G has 4 bits, so r = 3. Append three zeros: <code>100100000</code>.</p>
+<pre><code>1101 ) 100100000
+       <span class="hl">1101</span>          <span class="c">1001 XOR 1101 = 0100</span>
+        1000         <span class="c">bring down next bit</span>
+        <span class="hl">1101</span>         <span class="c">1000 XOR 1101 = 0101</span>
+         1010
+         <span class="hl">1101</span>        <span class="c">1010 XOR 1101 = 0111</span>
+          1110
+          <span class="hl">1101</span>       <span class="c">1110 XOR 1101 = 0011</span>
+           0110      <span class="c">starts with 0 → XOR with 0000</span>
+            1100
+            <span class="hl">1101</span>     <span class="c">1100 XOR 1101 = 0001</span>
+             <span class="hl">001</span>     <span class="c">← remainder (3 bits) = CRC</span></code></pre>
+<p>Transmit <strong><code>100100001</code></strong> (data <code>100100</code> + CRC <code>001</code>). The receiver divides <code>100100001</code> by <code>1101</code> and gets remainder 000 → no error.</p>
+<p class="small">XOR rule: same bits → 0, different bits → 1. Divide (XOR with G) only when the leading bit is 1.</p>
+</div>
+<p class="watch" data-topics="crc"><a class="search" href="https://www.youtube.com/results?search_query=CRC+cyclic+redundancy+check+solved+example">Search YouTube: CRC solved example</a></p>
+</section>
+
+<!-- ============================================================ physical -->
+<section class="lec" id="physical">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span><span class="tag warn">Numericals likely</span></p>
+  <h2>Physical layer: media, encoding, Shannon capacity</h2>
+  <p class="oneline">The physical layer turns bits into signals on a medium, and physics sets a hard upper limit on how many bits per second a channel can carry.</p>
+</header>
+<h3>Transmission media</h3>
+<div class="tw"><table>
+<thead><tr><th>Medium</th><th>Carries</th><th>Good</th><th>Bad</th></tr></thead>
+<tbody>
+<tr><th>Twisted pair (Ethernet cable)</th><td>Electrical signals</td><td>Cheap, easy</td><td>Short range (~100 m), picks up interference</td></tr>
+<tr><th>Coaxial cable</th><td>Electrical signals</td><td>Better shielding</td><td>Bulky</td></tr>
+<tr><th>Optical fibre</th><td>Light pulses</td><td>Huge capacity, long distance, immune to electrical noise</td><td>Costly to install and join</td></tr>
+<tr><th>Radio (WiFi, cellular, satellite)</th><td>Radio waves</td><td>No cables, mobility</td><td>Interference, shared medium, easy to eavesdrop on</td></tr>
+</tbody></table></div>
+
+<h3>Line encoding: bits → signal</h3>
+<div class="tw"><table>
+<thead><tr><th>Scheme</th><th>Rule</th><th>Note</th></tr></thead>
+<tbody>
+<tr><th>NRZ</th><td>1 = high level, 0 = low level</td><td>Simple, but a long run of the same bit gives no changes, so the receiver's clock drifts</td></tr>
+<tr><th>NRZI</th><td>1 = change level, 0 = no change</td><td>Fixes long runs of 1s, not of 0s</td></tr>
+<tr><th>Manchester</th><td>Every bit has a transition in the middle (e.g. 0 = high→low, 1 = low→high)</td><td>Self-clocking, but needs twice the bandwidth. Used in classic Ethernet.</td></tr>
+</tbody></table></div>
+
+<h3 id="shannon">Channel capacity</h3>
+<p><strong>Nyquist</strong> (a noiseless channel): with bandwidth B hertz and M signal levels,</p>
+<div class="formula">C = 2 · B · log₂(M)   bits per second</div>
+<p><strong>Shannon</strong> (a real, noisy channel): the absolute maximum error-free rate is</p>
+<div class="formula">C = B · log₂(1 + S/N)   bits per second<small>B = bandwidth in Hz · S/N = signal-to-noise ratio as a plain ratio, not in dB</small></div>
+<p>SNR is usually given in decibels. Convert first: <strong>SNR<sub>dB</sub> = 10 · log₁₀(S/N)</strong>, so 10 dB = 10, 20 dB = 100, 30 dB = 1,000.</p>
+<div class="box example" data-t="Worked example">
+<p>A telephone line has B = 3,000 Hz and SNR = 30 dB. Maximum data rate?</p>
+<p>30 dB → S/N = 1,000. C = 3,000 × log₂(1,001) ≈ 3,000 × 9.97 ≈ <strong>29,900 bps (about 30 kbps)</strong>.</p>
+<p>Nyquist on the same line with 4 signal levels and no noise: C = 2 × 3,000 × log₂(4) = 6,000 × 2 = 12,000 bps.</p>
+</div>
+<p>The lesson: to go faster you need <strong>more bandwidth</strong> or a <strong>better signal-to-noise ratio</strong>. No clever protocol can beat Shannon's limit.</p>
+<p class="watch" data-topics="shannon-encoding"><a class="search" href="https://www.youtube.com/results?search_query=Shannon+capacity+Nyquist+theorem+solved+example">Search YouTube: Shannon capacity and Nyquist</a></p>
+</section>
+
+<!-- ============================================================ cloud at scale -->
+<section class="lec" id="cloud-scale">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + AWS docs</span></p>
+  <h2>Cloud at scale: peering, Transit Gateway, endpoints, hybrid links, CloudFront</h2>
+  <p class="oneline">One VPC is an island; these services are the bridges between VPCs, to AWS services, and to your own data centre.</p>
+</header>
+<div class="tw"><table>
+<thead><tr><th>Service</th><th>Connects</th><th>Key facts</th></tr></thead>
+<tbody>
+<tr><th>VPC Peering</th><td>Two VPCs, directly</td><td>One-to-one and private. <strong>Not transitive</strong>: if A–B and B–C are peered, A still cannot reach C. CIDR blocks must not overlap. Add routes on both sides.</td></tr>
+<tr><th>Transit Gateway</th><td>Many VPCs (and VPNs) through one hub</td><td><strong>Hub-and-spoke</strong>. Each VPC attaches once to the hub instead of peering with every other VPC.</td></tr>
+<tr><th>VPC Endpoints</th><td>A VPC to AWS services (S3, DynamoDB…) privately</td><td>Traffic stays on the AWS network; no IGW or NAT needed. <strong>Gateway</strong> endpoints (S3, DynamoDB) are a route-table entry; <strong>interface</strong> endpoints are a private IP in your subnet.</td></tr>
+<tr><th>Site-to-Site VPN</th><td>Your data centre to a VPC, over the Internet</td><td>Encrypted IPSec tunnels. Quick and cheap; speed depends on the Internet.</td></tr>
+<tr><th>Direct Connect</th><td>Your data centre to AWS, over a dedicated private line</td><td>Does not use the public Internet. Steady, fast, low latency; costly and takes weeks to install.</td></tr>
+</tbody></table></div>
+<div class="box example" data-t="Why Transit Gateway? The n(n − 1)/2 problem again">
+<p>Fully connecting 10 VPCs with peering needs 10 × 9 / 2 = <strong>45</strong> peering connections. With a Transit Gateway it is <strong>10</strong> attachments. This is the same reasoning that took us from full mesh to star in <a href="01-how-internet-works.html#l4">Lecture 4</a>.</p>
+</div>
+<p><strong>Hybrid cloud</strong> means part of the system runs in your own data centre and part in the cloud, linked by a Site-to-Site VPN or Direct Connect.</p>
+
+<h3>CloudFront deep dive</h3>
+<ul>
+<li><strong>Edge caching:</strong> CloudFront keeps copies at Edge Locations. A request is served from the edge on a cache hit, and fetched from the <strong>origin</strong> (S3, ALB, EC2) on a miss. The TTL comes from <code>Cache-Control</code> or the cache policy. See <a href="02-application-layer.html#l8-cdn">CDNs</a>.</li>
+<li><strong>Origin failover:</strong> put a primary and a secondary origin in an <strong>origin group</strong>. If the primary returns errors (such as 5xx) or times out, CloudFront automatically retries the request on the secondary.</li>
+<li><strong>Invalidation:</strong> removes an object from the edges before its TTL ends, when you must replace it immediately.</li>
+<li>CloudFront also terminates TLS at the edge (ACM certificate) and can attach AWS WAF and Shield.</li>
+</ul>
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>VPC A is peered with B, and B with C. Can A talk to C?</summary><p>No. Peering is not transitive. A and C need their own peering connection, or all three attach to a Transit Gateway.</p></details>
+<details><summary>How do instances in a private subnet reach S3 without a NAT Gateway?</summary><p>Through a VPC endpoint for S3 (a gateway endpoint).</p></details>
+<details><summary>Site-to-Site VPN vs Direct Connect in one line each.</summary><p>VPN: encrypted tunnel over the public Internet, quick and cheap. Direct Connect: a dedicated private line, steady and fast but costly and slow to set up.</p></details>
+<details><summary>What is CloudFront origin failover?</summary><p>An origin group with a primary and a secondary origin; CloudFront switches to the secondary when the primary fails.</p></details>
+</div>
+<p class="watch" data-topics="vpc-peering-tgw cloudfront"><a class="search" href="https://www.youtube.com/results?search_query=AWS+VPC+peering+vs+transit+gateway+explained">Search YouTube: VPC peering vs Transit Gateway</a></p>
+</section>
+
+<div class="pager"><a href="05-routing-security.html">← Routing and security</a><a href="cheatsheet.html">Cheat sheet →</a></div>
+
+</main>
+</div>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>

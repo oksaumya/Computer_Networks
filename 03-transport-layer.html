@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3 · The Transport Layer — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="On this page"></nav>
+<main>
+
+<p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Weeks 5–6</span><span class="tag">Lectures 9–12</span></p>
+<h1>The Transport Layer and Cloud Load Balancing</h1>
+<p class="lede">The network below can lose, delay, and reorder packets. The transport layer is where that mess is hidden from your apps. This is the most exam-heavy part of the mid-sem.</p>
+
+<!-- ============================================================ L9 -->
+<section class="lec" id="l9">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 9</span></p>
+  <h2>Lecture 9 — Multiplexing, ports, UDP, and the TCP connection</h2>
+  <p class="oneline">The network layer gets data to the right computer. The transport layer gets it to the right program on that computer, using port numbers.</p>
+</header>
+
+<h3>What the transport layer does</h3>
+<div class="tw"><table>
+<thead><tr><th></th><th>Network layer (L3)</th><th>Transport layer (L4)</th></tr></thead>
+<tbody>
+<tr><th>Delivers between</th><td><strong>Hosts</strong> (host-to-host)</td><td><strong>Processes</strong> (process-to-process). A process is a running program.</td></tr>
+<tr><th>Address used</th><td>IP address</td><td>Port number</td></tr>
+<tr><th>PDU</th><td>Datagram</td><td>Segment</td></tr>
+<tr><th>Runs on</th><td>Hosts and routers</td><td><strong>Only the sending and receiving hosts</strong></td></tr>
+</tbody></table></div>
+<p>The transport layer turns application messages into <strong>segments</strong>. Routers in the middle only read network-layer information; they <strong>ignore the transport header completely</strong>.</p>
+
+<h3 id="l9-ports">Ports and sockets</h3>
+<div class="box analogy" data-t="Class analogy — the apartment building">
+<p>To send a letter to a friend in a big apartment building you need two things: the <strong>building's street address</strong> and the <strong>apartment number</strong>. Without both, the letter is lost.</p>
+<p>🏢 <strong>IP address</strong> = the computer's street address (e.g. <code>172.217.167.78</code>).<br>
+🚪 <strong>Port number</strong> = the application's apartment number (e.g. port <code>443</code>).</p>
+</div>
+<ul>
+<li>A <strong>port</strong> is a 16-bit number (0 to 65,535) that identifies one application on a computer.</li>
+<li><strong>IP address + port number = socket</strong>: one unique endpoint, a specific "doorway" on a computer. Written <code>172.217.167.78:443</code>.</li>
+<li>Example: your browser connecting to Google is <code>your laptop IP : random port</code> ↔ <code>Google IP : 443</code>.</li>
+<li>To see listening ports on Linux: <code>netstat -tnlp</code>.</li>
+</ul>
+<div class="box exam" data-t="Well-known ports — memorise">
+<div class="tw"><table>
+<thead><tr><th class="num">Port</th><th>Service</th><th>Transport</th></tr></thead>
+<tbody>
+<tr><td class="num">22</td><th>SSH</th><td>TCP</td></tr>
+<tr><td class="num">25 / 587</td><th>SMTP (email sending)</th><td>TCP</td></tr>
+<tr><td class="num">53</td><th>DNS</th><td>UDP (TCP for large answers)</td></tr>
+<tr><td class="num">80</td><th>HTTP</th><td>TCP</td></tr>
+<tr><td class="num">443</td><th>HTTPS</th><td>TCP (UDP for HTTP/3)</td></tr>
+<tr><td class="num">110 / 143</td><th>POP3 / IMAP</th><td>TCP</td></tr>
+<tr><td class="num">67 / 68</td><th>DHCP</th><td>UDP</td></tr>
+</tbody></table></div>
+<p class="small">Port ranges: <strong>0–1023</strong> well-known (reserved for standard services), 1024–49151 registered, <strong>49152–65535</strong> ephemeral (temporary ports the OS gives to clients, like the "random port" above).</p>
+</div>
+
+<h3 id="l9-mux">Multiplexing and demultiplexing</h3>
+<p>Your laptop runs a browser, Spotify, and WhatsApp at once, all sharing one network connection.</p>
+<ul>
+<li><strong>Multiplexing (sender side):</strong> collect data from many application processes, label each piece with port numbers, and send them all down through the one network layer.</li>
+<li><strong>Demultiplexing (receiver side):</strong> look at the port number in each arriving segment and deliver it to the correct application process.</li>
+</ul>
+<figure>
+<div class="flow">
+  <div class="node a"><b>Browser</b><small>port 51000</small></div>
+  <div class="node a"><b>Spotify</b><small>port 51001</small></div>
+  <div class="node a"><b>WhatsApp</b><small>port 51002</small></div>
+  <div class="arr">→<small>mux</small></div>
+  <div class="node o"><b>One network path</b><small>segments carry port numbers</small></div>
+  <div class="arr">→<small>demux</small></div>
+  <div class="node g"><b>Right process</b><small>chosen by destination port</small></div>
+</div>
+</figure>
+<div class="tw"><table>
+<thead><tr><th></th><th>UDP demultiplexing</th><th>TCP demultiplexing</th></tr></thead>
+<tbody>
+<tr><th>Socket identified by</th><td><strong>2-tuple</strong>: destination IP, destination port</td><td><strong>4-tuple</strong>: source IP, source port, destination IP, destination port</td></tr>
+<tr><th>Effect</th><td>All senders to the same port land in the same socket</td><td>Each client gets its own connection, even when all go to port 443</td></tr>
+</tbody></table></div>
+<div class="box example" data-t="Why the 4-tuple matters">
+<p>Two tabs in your browser open the same site. Both go to <code>142.250.72.14:443</code>, from the same laptop IP. The only difference is the source port (say 51000 and 51001). Because TCP uses all four values, the server sees two separate connections and never mixes up the replies.</p>
+</div>
+
+<h3 id="l9-udp">UDP — User Datagram Protocol</h3>
+<p>UDP's attitude, from the class slide: the receiver asks "Are you getting all of this?", and UDP answers "Who cares, just send it faster!"</p>
+<ul>
+<li><strong>Connectionless:</strong> no handshake. Just send.</li>
+<li><strong>No ACKs</strong> (no confirmations), <strong>no retransmission</strong>, <strong>no ordering</strong>, no flow or congestion control.</li>
+<li>Delivery is "best effort": segments may be lost, duplicated, or arrive out of order.</li>
+<li>Tiny header: <strong>8 bytes</strong>, four fields.</li>
+</ul>
+<div class="tw"><table>
+<thead><tr><th>UDP header field (16 bits each)</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><th>Source port</th><td>Which application sent it</td></tr>
+<tr><th>Destination port</th><td>Which application should receive it</td></tr>
+<tr><th>Length</th><td>Size of header + data</td></tr>
+<tr><th>Checksum</th><td>Detects corrupted bits</td></tr>
+</tbody></table></div>
+<p><strong>Where UDP is used, and why:</strong></p>
+<ul>
+<li><strong>DNS:</strong> one small question, one small answer. A handshake would double the time. If the reply is lost, just ask again.</li>
+<li><strong>Live video / live streaming</strong> (cricket, news, gaming): speed matters more than perfection. If some frames are lost they are <strong>skipped</strong>. Waiting for a re-send would freeze the picture.</li>
+<li><strong>VoIP</strong> (voice calls) and online games: same reason. Old data is useless.</li>
+<li><strong>QUIC / HTTP/3:</strong> builds its own reliability on top of UDP.</li>
+</ul>
+
+<h3 id="l9-tcp">TCP — Transmission Control Protocol</h3>
+<ul>
+<li><strong>Connection-oriented:</strong> the two sides set up a connection (handshake) before sending data, and close it afterwards.</li>
+<li><strong>Reliable:</strong> lost data is detected and re-sent. Uses sequence numbers, acknowledgments, and checksums.</li>
+<li><strong>In-order byte stream:</strong> the application receives exactly the bytes that were sent, in the same order, with no gaps and no duplicates.</li>
+<li>Also does <strong>flow control</strong> (Lecture 10) and <strong>congestion control</strong> (Lecture 11).</li>
+</ul>
+
+<h3 id="l9-handshake">The TCP 3-way handshake</h3>
+<p>Told from your browser's side, connecting to a Google server (the story from class). Think of a phone call: ring, "hello?", "I'm here".</p>
+<div class="ladder">
+  <div class="ends"><span>Client (your browser)</span><span>Server (Google, port 443)</span></div>
+  <div class="lines">
+    <div class="msg r"><b>① SYN</b>  seq = 100<small>"Are you there? I'd like to talk. I'll number my data starting at 100."</small></div>
+    <div class="msg l"><b>② SYN-ACK</b>  seq = 350, ack = 101<small>"Yes, I'm here. I got your 100, send 101 next. I'll number mine starting at 350."</small></div>
+    <div class="msg r"><b>③ ACK</b>  ack = 351<small>"Got it. You start at 350, I expect 351 next. Let's talk."</small></div>
+    <div class="gap ok">Connection ESTABLISHED — data can flow both ways</div>
+  </div>
+</div>
+<ul>
+<li><strong>SYN</strong> = "synchronize". It means "let's synchronize our sequence numbers".</li>
+<li><strong>ACK</strong> = "acknowledgment". The ack number is always <strong>the next number I expect from you</strong>. That is why seq 100 is answered with ack 101.</li>
+<li>Each side picks its own starting sequence number (called the ISN, initial sequence number). They are random in real life; 100 and 350 are just the class example.</li>
+</ul>
+<div class="box note" data-t="Why three steps and not two?">
+<p>Both sides must (a) announce their own starting number and (b) hear that the other side received it. Step ① does (a) for the client. Step ② does (b) for the client and (a) for the server. Step ③ does (b) for the server. With only two steps the server would never know its own SYN arrived.</p>
+</div>
+
+<h4>Connection teardown — a 4-step goodbye</h4>
+<div class="ladder">
+  <div class="ends"><span>Client</span><span>Server</span></div>
+  <div class="lines">
+    <div class="msg r"><b>① FIN</b><small>"I have to go." (I have no more data to send)</small></div>
+    <div class="msg l"><b>② ACK</b><small>"Okay."</small></div>
+    <div class="gap">server may still finish sending its remaining data</div>
+    <div class="msg l"><b>③ FIN</b><small>"I'm done too."</small></div>
+    <div class="msg r"><b>④ ACK</b><small>"Bye."</small></div>
+    <div class="gap">Connection CLOSED</div>
+  </div>
+</div>
+<p><strong>FIN</strong> = "finish". Each direction is closed separately, which is why it takes four messages: FIN, ACK, FIN, ACK.</p>
+
+<h4>How TCP keeps order and reliability (preview of Lecture 10)</h4>
+<ul>
+<li><strong>Sequence numbers → ordered delivery.</strong> Packets can take different routes and arrive out of order: "the mat." "The cat" "sat on". Every segment carries a number. If #3 arrives before #2, the receiver holds it until #2 comes, then hands the data to the app in order.</li>
+<li><strong>Acknowledgments + retransmission → reliability.</strong> On a phone call you know the other person heard you when they say "hmm" or "achcha". When the server receives bytes 101–200 it sends an ACK saying "I've received everything up to 200; send 201 next". If the sender gets no ACK within a set time, it assumes the data was lost and <strong>re-sends it</strong>.</li>
+</ul>
+
+<h4>TCP segment header — the fields to recognise</h4>
+<div class="tw"><table>
+<thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><th>Source port, Destination port</th><td>Which applications are talking (multiplexing)</td></tr>
+<tr><th>Sequence number</th><td>Position of this segment's data in the stream → ordered delivery</td></tr>
+<tr><th>Acknowledgment number</th><td>The next sequence number the sender of this segment expects → confirms receipt</td></tr>
+<tr><th>Data offset</th><td>Length of the TCP header (in 32-bit words)</td></tr>
+<tr><th>Control flags</th><td>Single bits: <strong>SYN</strong>, <strong>ACK</strong>, <strong>FIN</strong>, RST (reset), PSH, URG</td></tr>
+<tr><th>Window size</th><td>How much buffer space the receiver has → <strong>flow control</strong></td></tr>
+<tr><th>Checksum</th><td>Detects corrupted bits</td></tr>
+<tr><th>Urgent pointer</th><td>Used only when the URG flag is set</td></tr>
+</tbody></table></div>
+<p class="small muted">A TCP header is at least 20 bytes. A UDP header is 8 bytes.</p>
+
+<h3 id="l9-choose">UDP vs TCP: which to choose?</h3>
+<div class="tw"><table>
+<thead><tr><th></th><th>UDP</th><th>TCP</th></tr></thead>
+<tbody>
+<tr><th>Connection</th><td>Connectionless (no handshake)</td><td>Connection-oriented (3-way handshake)</td></tr>
+<tr><th>Reliability</th><td>None: no ACKs, no retransmission</td><td>Reliable: ACKs, timeouts, retransmission</td></tr>
+<tr><th>Ordering</th><td>None</td><td>In-order byte stream</td></tr>
+<tr><th>Flow / congestion control</th><td>None</td><td>Both</td></tr>
+<tr><th>Header</th><td>8 bytes</td><td>20+ bytes</td></tr>
+<tr><th>Speed</th><td>Fast, low overhead, no setup delay</td><td>Slower: setup + waiting for re-sends</td></tr>
+<tr><th>Used for</th><td>DNS, live video, VoIP, games, QUIC/HTTP-3</td><td>Web (HTTP/1.1, HTTP/2), email, file transfer, SSH</td></tr>
+</tbody></table></div>
+<div class="box exam" data-t="How to decide in an exam scenario">
+<p>Ask one question: <strong>is late data still useful?</strong></p>
+<ul>
+<li><strong>Every byte must arrive, and a short wait is fine</strong> (a bank transfer, a file, an email, a web page) → <strong>TCP</strong>.</li>
+<li><strong>Data must be on time, and a little loss is fine</strong> (a live call, a live match, a game) → <strong>UDP</strong>.</li>
+<li><strong>Tiny one-shot question and answer</strong> (DNS) → <strong>UDP</strong>.</li>
+</ul>
+</div>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>What is the difference between host-to-host and process-to-process delivery?</summary><p>Host-to-host (network layer) gets data to the right computer using its IP address. Process-to-process (transport layer) gets it to the right program on that computer using a port number.</p></details>
+<details><summary>What is a socket?</summary><p>An IP address combined with a port number: one unique endpoint for communication.</p></details>
+<details><summary>What four values identify a TCP connection?</summary><p>Source IP, source port, destination IP, destination port (the 4-tuple).</p></details>
+<details><summary>Give the port numbers for SSH, DNS, HTTP, HTTPS.</summary><p>22, 53, 80, 443.</p></details>
+<details><summary>A client sends SYN with seq = 2000. The server replies SYN-ACK with seq = 7000. What are the ack numbers in step 2 and step 3?</summary><p>Step 2 (SYN-ACK): ack = 2001. Step 3 (ACK): ack = 7001. The ack is always the other side's sequence number + 1 during the handshake.</p></details>
+<details><summary>Why does DNS use UDP?</summary><p>A DNS exchange is one small request and one small reply. A TCP handshake would add a round trip of delay for no benefit; if the reply is lost the client simply asks again.</p></details>
+<details><summary>How many messages close a TCP connection, and what are they?</summary><p>Four: FIN, ACK, FIN, ACK.</p></details>
+<details><summary>For each, TCP or UDP: (a) downloading a PDF, (b) a WhatsApp voice call, (c) sending an email.</summary><p>(a) TCP. (b) UDP. (c) TCP.</p></details>
+</div>
+
+<p class="watch" data-topics="ports-mux udp-vs-tcp tcp-handshake"><a class="search" href="https://www.youtube.com/results?search_query=TCP+3+way+handshake+explained">Search YouTube: TCP 3-way handshake explained</a></p>
+</section>
+
+<!-- ============================================================ L10 -->
+<section class="lec" id="l10">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 10</span><span class="tag warn">Numericals likely</span></p>
+  <h2>Lecture 10 — Reliable data transfer (Go-Back-N, Selective Repeat) and TCP flow control</h2>
+  <p class="oneline">Reliability is built from a few simple tools: number every packet, confirm what arrived, and re-send what did not. The protocols differ only in how much they re-send.</p>
+</header>
+
+<h3 id="l10-tools">Building reliability from an unreliable channel</h3>
+<p>The network below can <strong>corrupt</strong> bits, <strong>lose</strong> packets, and <strong>reorder</strong> them. Each problem has a tool:</p>
+<div class="tw"><table>
+<thead><tr><th>Problem</th><th>Tool</th><th>How it helps</th></tr></thead>
+<tbody>
+<tr><td>Bits got flipped</td><th>Checksum</th><td>Receiver recomputes it and detects the damage</td></tr>
+<tr><td>Did it arrive?</td><th>ACK / NAK</th><td>ACK = "got it". NAK (negative ACK) = "it was bad, send again".</td></tr>
+<tr><td>Packet or ACK vanished</td><th>Timeout</th><td>Sender starts a timer. No ACK before it expires → assume lost.</td></tr>
+<tr><td>Fix the loss</td><th>Retransmission</th><td>Send it again</td></tr>
+<tr><td>Duplicates and wrong order</td><th>Sequence numbers</th><td>Receiver can spot repeats and put packets back in order</td></tr>
+</tbody></table></div>
+
+<h4>Checksum, worked through</h4>
+<p>The idea: the sender adds up the data and sends the (flipped) sum along with it. The receiver adds everything up again. If the result is not what it should be, bits were damaged.</p>
+<div class="box example" data-t="Worked example — 8-bit chunks (the numbers from class)">
+<p>Alice sends two chunks: <code>10010011</code> (147) and <code>01010110</code> (86).</p>
+<pre><code>  10010011
++ 01010110
+----------
+  11101001      <span class="c">← the sum (233). No carry out of the 8th bit this time.</span></code></pre>
+<p><strong>Flip every bit</strong> (this is called the 1's complement): checksum = <code>00010110</code>.</p>
+<p><strong>Receiver (Bob)</strong> adds the two chunks and the checksum: <code>11101001 + 00010110 = 11111111</code>. All 1s → no error detected ✅. Any 0 in the result means the data was damaged.</p>
+</div>
+<div class="box example" data-t="Second example — when there is a carry">
+<p>Chunks <code>11010011</code> (211) and <code>01010110</code> (86).</p>
+<pre><code>  11010011
++ 01010110
+----------
+1 00101001      <span class="c">← 9 bits: a carry came out of the top</span>
+  00101001
++        1      <span class="c">← wrap the carry around: add it back to the result</span>
+----------
+  00101010      <span class="c">← the sum</span></code></pre>
+<p>Flip the bits: checksum = <code>11010101</code>. Check: <code>00101010 + 11010101 = 11111111</code> ✅.</p>
+</div>
+<div class="box warn" data-t="A mismatch with the class slide">
+<p>The class slides use the first pair of numbers but show a sum of <code>00001001</code> with a carry, giving checksum <code>11110101</code>. If you add 147 + 86 by hand you get 233 = <code>11101001</code> with no carry, so the checksum is <code>00010110</code>. The <strong>method</strong> on the slide is right (add, wrap any carry, flip the bits); only the arithmetic differs. In the exam, show each step so you get the method marks, and ask your instructor which answer they expect for this pair.</p>
+<p class="small">Real TCP and UDP do the same thing with 16-bit chunks.</p>
+</div>
+
+<h4>RTT and the timeout</h4>
+<p><strong>Round Trip Time (RTT)</strong> is the time for a segment to go from sender to receiver <em>plus</em> the time for the ACK to come back. You can measure it with <code>ping newtonschool.co</code>.</p>
+<p>The sender must choose how long to wait before deciding a packet is lost. Too short → it re-sends packets that were only slow (a <strong>premature timeout</strong>, wasteful). Too long → it reacts slowly to real loss. So the timeout is set a little longer than the measured RTT.</p>
+
+<h3 id="l10-sw">Stop-and-wait: correct but slow</h3>
+<p>The simplest reliable protocol: send <strong>one</strong> packet, <strong>stop</strong>, and <strong>wait</strong> for its ACK before sending the next.</p>
+<div class="ladder">
+  <div class="ends"><span>Sender</span><span>Receiver</span></div>
+  <div class="lines">
+    <div class="msg r"><b>Packet 0</b></div>
+    <div class="msg l g"><b>ACK 1</b><small>"got 0, send me 1"</small></div>
+    <div class="msg r lost"><b>Packet 1</b></div>
+    <div class="gap bad">no ACK arrives → timer expires</div>
+    <div class="msg r"><b>Packet 1</b> (re-sent)</div>
+    <div class="msg l g"><b>ACK 2</b></div>
+  </div>
+</div>
+<p>It always works, but the sender is idle most of the time, waiting. On a long-distance link, waiting dominates.</p>
+<div class="formula">Utilization = T<sub>frame</sub> / (T<sub>frame</sub> + 2 · T<sub>prop</sub>)<small>T<sub>frame</sub> = transmission time (L/R) · T<sub>prop</sub> = one-way propagation delay (d/s)</small></div>
+<div class="box example" data-t="Worked example">
+<p>Packets of 8,000 bits on a 1 Mbps link that is 3,000 km long (signal speed 2 × 10⁸ m/s). What fraction of the time is the sender actually sending?</p>
+<p>T<sub>frame</sub> = 8,000 ÷ 1,000,000 = 8 ms.<br>
+T<sub>prop</sub> = 3,000,000 ÷ 200,000,000 = 15 ms.<br>
+Utilization = 8 ÷ (8 + 2 × 15) = 8 ÷ 38 ≈ <strong>0.21, or 21%</strong>.</p>
+<p>The link sits idle 79% of the time.</p>
+</div>
+
+<h3 id="l10-pipe">Pipelining and the window</h3>
+<p><strong>Pipelining</strong> means sending several packets in a row without waiting for each ACK. This fills the idle time and raises utilization.</p>
+<p>The sender may not send without limit. It keeps a <strong>window</strong>: the set of packets it is allowed to have "in flight" (sent but not yet acknowledged). The window size is N. When the oldest packet is ACKed, the window <strong>slides</strong> forward and a new packet may be sent.</p>
+<figure>
+<div class="cells"><span class="ok">0</span><span class="ok">1</span><span class="win">2</span><span class="win">3</span><span class="win">4</span><span class="win">5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+<div class="key"><span><i style="background:var(--green-bg);border:1px solid var(--green)"></i>sent and ACKed</span><span><i style="background:var(--accent-soft);border:1px solid var(--accent)"></i>inside the window (N = 4): may be sent / waiting for ACK</span><span><i style="background:var(--surface-2);border:1px solid var(--line)"></i>not allowed yet</span></div>
+<figcaption>When packet 2 is ACKed the window slides to 3–6, and packet 6 can be sent.</figcaption>
+</figure>
+<p>There are two pipelined protocols. They differ in what happens when a packet is lost.</p>
+
+<h3 id="l10-gbn">Go-Back-N (GBN)</h3>
+<ul>
+<li>The sender sends up to N packets without waiting.</li>
+<li>The receiver accepts packets <strong>only in order</strong>. It has no buffer for out-of-order packets.</li>
+<li>ACKs are <strong>cumulative</strong>: "ACK n" means "I have everything up to and including n".</li>
+<li>If a packet is lost, the receiver <strong>discards every packet after it</strong>, even correct ones, and keeps re-sending the ACK for the last in-order packet.</li>
+<li>On timeout the sender <strong>goes back</strong> and re-sends the lost packet <strong>and everything after it</strong> in the window.</li>
+</ul>
+<div class="ladder">
+  <div class="ends"><span>Sender (N = 4)</span><span>Receiver</span></div>
+  <div class="lines">
+    <div class="msg r"><b>pkt 0</b></div>
+    <div class="msg r"><b>pkt 1</b></div>
+    <div class="msg r lost"><b>pkt 2</b></div>
+    <div class="msg r"><b>pkt 3</b><small>arrives out of order → receiver discards it</small></div>
+    <div class="msg l g"><b>ACK 0</b>, <b>ACK 1</b></div>
+    <div class="msg l g"><b>ACK 1</b> again<small>"I still have only up to 1"</small></div>
+    <div class="msg r"><b>pkt 4</b>, <b>pkt 5</b><small>window slid after ACK 1 → also discarded by receiver</small></div>
+    <div class="gap bad">timeout for pkt 2</div>
+    <div class="msg r"><b>pkt 2, 3, 4, 5</b><small>go back: re-send the lost one and all after it</small></div>
+    <div class="msg l g"><b>ACK 2, 3, 4, 5</b></div>
+  </div>
+</div>
+
+<h3 id="l10-sr">Selective Repeat (SR)</h3>
+<ul>
+<li>The sender sends up to N packets without waiting (same as GBN).</li>
+<li>The receiver <strong>accepts and buffers out-of-order packets</strong>.</li>
+<li>ACKs are <strong>individual</strong>: each packet is acknowledged by itself.</li>
+<li>Each packet has its own timer. On timeout the sender re-sends <strong>only that one packet</strong>.</li>
+<li>When the missing packet finally arrives, the receiver delivers it together with everything it had buffered, in order.</li>
+</ul>
+<div class="ladder">
+  <div class="ends"><span>Sender (N = 4)</span><span>Receiver</span></div>
+  <div class="lines">
+    <div class="msg r"><b>pkt 0</b>, <b>pkt 1</b></div>
+    <div class="msg r lost"><b>pkt 2</b></div>
+    <div class="msg r"><b>pkt 3</b><small>out of order → receiver <u>buffers</u> it</small></div>
+    <div class="msg l g"><b>ACK 0</b>, <b>ACK 1</b>, <b>ACK 3</b></div>
+    <div class="msg r"><b>pkt 4</b>, <b>pkt 5</b><small>buffered and ACKed too</small></div>
+    <div class="gap bad">timeout for pkt 2 only</div>
+    <div class="msg r"><b>pkt 2</b><small>re-send just the missing one</small></div>
+    <div class="msg l g"><b>ACK 2</b><small>receiver now delivers 2, 3, 4, 5 to the app in order</small></div>
+  </div>
+</div>
+
+<div class="box exam" data-t="GBN vs SR — the table to memorise">
+<div class="tw"><table>
+<thead><tr><th></th><th>Go-Back-N</th><th>Selective Repeat</th></tr></thead>
+<tbody>
+<tr><th>ACK type</th><td>Cumulative</td><td>Individual (selective)</td></tr>
+<tr><th>On loss, sender re-sends</th><td>The lost packet <strong>and all after it</strong> in the window</td><td><strong>Only</strong> the lost packet</td></tr>
+<tr><th>Out-of-order packets at receiver</th><td>Discarded</td><td>Buffered</td></tr>
+<tr><th>Receiver window size</th><td>1</td><td>N</td></tr>
+<tr><th>Timers</th><td>One (for the oldest un-ACKed packet)</td><td>One per packet</td></tr>
+<tr><th>Receiver complexity</th><td>Simple</td><td>More complex (needs buffer)</td></tr>
+<tr><th>Bandwidth wasted on re-sends</th><td>More</td><td>Less</td></tr>
+<tr><th>Better when</th><td>Loss is rare</td><td>Loss is common or the link is slow/expensive</td></tr>
+</tbody></table></div>
+<p class="small">Extra fact if asked: with m-bit sequence numbers, the largest safe window is 2<sup>m</sup> − 1 for GBN and 2<sup>m−1</sup> for SR.</p>
+</div>
+<div class="box example" data-t="Worked example — count the transmissions">
+<p>A sender has 10 packets (0–9), window N = 4. Only packet 3 is lost, once. Everything else arrives. How many packets are transmitted in total?</p>
+<p><strong>Go-Back-N:</strong> when packet 3 times out, the window holds 3, 4, 5, 6, so all four are re-sent. Total = 10 + 4 = <strong>14</strong>.<br>
+<strong>Selective Repeat:</strong> only packet 3 is re-sent. Total = 10 + 1 = <strong>11</strong>.</p>
+</div>
+
+<h4>What real TCP does: a hybrid</h4>
+<ul>
+<li><strong>Cumulative ACKs</strong> like GBN ("I have everything up to byte X").</li>
+<li>But the receiver <strong>buffers</strong> out-of-order segments like SR, and with the <strong>SACK</strong> (selective acknowledgment) option it tells the sender exactly which later blocks it already has.</li>
+<li><strong>Fast retransmit:</strong> if the sender sees three duplicate ACKs, it re-sends the missing segment immediately without waiting for the timer (details in Lecture 11).</li>
+<li>So TCP re-sends only what is missing, like SR.</li>
+</ul>
+
+<h3 id="l10-flow">TCP flow control</h3>
+<p><strong>Problem:</strong> not all devices have the same buffer size or processing power. A fast sender can flood a slow receiver. The receiver's buffer overflows and data is lost.</p>
+<p><strong>Solution:</strong> the receiver tells the sender how much it can take: "Hey, slow down, I can only handle this much right now."</p>
+<ul>
+<li>The receiver puts its free buffer space in the <strong>Window size</strong> field of every segment it sends back. This is the <strong>receive window, rwnd</strong> ("receiver-advertised window").</li>
+<li>The sender never has more un-ACKed data in flight than rwnd.</li>
+<li>As the receiving application reads data, space frees up, rwnd grows, and the sender's window <strong>slides</strong> forward. This is TCP's <strong>sliding window</strong>.</li>
+</ul>
+<figure>
+<div class="flow">
+  <div class="node a"><b>Sender</b><small>may have at most rwnd bytes un-ACKed</small></div>
+  <div class="arr">→<small>data</small></div>
+  <div class="node o"><b>Receiver buffer</b><small>part full, part free</small></div>
+  <div class="arr">→<small>app reads</small></div>
+  <div class="node g"><b>Application</b></div>
+</div>
+<figcaption>Every ACK going back carries "rwnd = free space in my buffer".</figcaption>
+</figure>
+<div class="box example" data-t="Worked example">
+<p>The receiver's buffer holds 4,000 bytes. It currently holds 2,500 bytes the app has not read yet. What rwnd does it advertise?</p>
+<p>rwnd = free space = 4,000 − 2,500 = <strong>1,500 bytes</strong>. The sender may have at most 1,500 un-ACKed bytes outstanding.</p>
+</div>
+<h4>Zero window</h4>
+<p>If the receiver's buffer is completely full it advertises <strong>window size = 0</strong>. The sender must stop sending data. So that it does not wait forever, the sender periodically sends a tiny <strong>window probe</strong>; when the receiver has space again it replies with a non-zero window and sending resumes.</p>
+<div class="box warn" data-t="Don't confuse">
+<p><strong>Flow control protects the receiver</strong> (its buffer). <strong>Congestion control protects the network</strong> (the routers in between). They are two separate mechanisms with two separate windows: rwnd and cwnd. Lecture 11 covers cwnd.</p>
+</div>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Name the five building blocks of reliable data transfer.</summary><p>Checksums, acknowledgments (ACK/NAK), timeouts, retransmission, sequence numbers.</p></details>
+<details><summary>Compute the 8-bit checksum of <code>01100110</code> and <code>01010101</code>.</summary><p>Sum = <code>10111011</code> (102 + 85 = 187, no carry). Flip the bits: <code>01000100</code>.</p></details>
+<details><summary>Stop-and-wait: T<sub>frame</sub> = 2 ms, T<sub>prop</sub> = 9 ms. What is the utilization?</summary><p>2 ÷ (2 + 18) = 0.1 = 10%.</p></details>
+<details><summary>In Go-Back-N with N = 5, packets 0–4 are sent and packet 1 is lost. Which packets are re-sent after the timeout?</summary><p>1, 2, 3, 4 (the lost one and everything after it that was sent). The receiver had discarded 2, 3, 4 because they were out of order.</p></details>
+<details><summary>Same situation in Selective Repeat. What is re-sent?</summary><p>Only packet 1. The receiver buffered 2, 3, 4 and ACKed each of them.</p></details>
+<details><summary>What does "cumulative ACK" mean?</summary><p>One ACK confirms everything up to a point. "ACK 7" means all packets up to 7 have arrived.</p></details>
+<details><summary>What is rwnd, and who sets it?</summary><p>The receive window: the free space in the receiver's buffer. The receiver sets it and advertises it in the Window field of the TCP header.</p></details>
+<details><summary>What happens when a receiver advertises a zero window?</summary><p>The sender stops sending data and sends small window probes from time to time until the receiver advertises a non-zero window.</p></details>
+<details><summary>In what way is real TCP a hybrid of GBN and SR?</summary><p>It uses cumulative ACKs (GBN-like) but buffers out-of-order segments and can use SACK and fast retransmit to re-send only the missing segment (SR-like).</p></details>
+</div>
+
+<p class="watch" data-topics="stop-and-wait go-back-n selective-repeat flow-control"><a class="search" href="https://www.youtube.com/results?search_query=go+back+n+vs+selective+repeat+explained">Search YouTube: Go-Back-N vs Selective Repeat</a></p>
+<p class="small muted">Animations used in class: <a href="https://nstclassdemo2025.pages.dev/stop-and-wait">stop-and-wait</a> · <a href="https://nstclassdemo2025.pages.dev/sliding-window">sliding window</a> · <a href="https://nstclassdemo2025.pages.dev/zero-window">zero window</a></p>
+</section>
+
+<!-- ============================================================ L11 -->
+<section class="lec" id="l11">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 11</span><span class="tag warn">Numericals likely</span></p>
+  <h2>Lecture 11 — TCP congestion control (slow start, AIMD) and TLS at the transport edge</h2>
+  <p class="oneline">TCP speeds up carefully while things go well and slows down sharply the moment a packet is lost, so that the network does not jam for everyone.</p>
+</header>
+
+<h3>What is congestion?</h3>
+<p><strong>Congestion</strong> happens when the <strong>offered load is greater than the network's capacity</strong>: senders together push more data than the routers and links can carry. Router queues grow, so <strong>queuing delay</strong> rises; then buffers overflow, so packets are <strong>lost</strong> (Lecture 2).</p>
+<div class="box analogy" data-t="Class analogy — the traffic jam and the polite driver">
+<p>Flow control helps one slow receiver ("only Mater wants to move slowly"). Congestion is a traffic jam: the road itself is full, so <strong>all</strong> senders have to slow down.</p>
+<p>TCP is a <strong>polite driver</strong>. Its mission: get your data there as fast as possible, but without causing a traffic jam for everyone else.</p>
+</div>
+
+<h3 id="l11-cwnd">The congestion window (cwnd)</h3>
+<ul>
+<li><strong>cwnd</strong> is a limit kept by the <strong>sender</strong> on how much data it may have in flight (sent but not yet ACKed).</li>
+<li>Nobody tells the sender this number. It <strong>guesses</strong> the network's capacity and adjusts the guess from what it observes: ACKs arriving = good, loss = too fast.</li>
+<li>It is measured in <strong>MSS</strong> (Maximum Segment Size): the largest amount of data, in bytes, that fits in one TCP segment. "cwnd = 4" means four full segments.</li>
+<li>For a new connection, most operating systems today start with cwnd = 10 MSS. Textbook and exam examples start at <strong>1 MSS</strong>.</li>
+</ul>
+<div class="tw"><table>
+<thead><tr><th></th><th>rwnd (receive window)</th><th>cwnd (congestion window)</th></tr></thead>
+<tbody>
+<tr><th>Protects</th><td>The <strong>receiver</strong></td><td>The <strong>network</strong></td></tr>
+<tr><th>Set by</th><td>The receiver, sent in the TCP header</td><td>The sender, computed by itself</td></tr>
+<tr><th>Based on</th><td>Free buffer space at the receiver</td><td>Loss and ACKs observed</td></tr>
+<tr><th>Mechanism</th><td>Flow control</td><td>Congestion control</td></tr>
+</tbody></table></div>
+<div class="formula">amount in flight ≤ min(cwnd, rwnd)   →   sender rate ≈ min(cwnd, rwnd) / RTT</div>
+<div class="box example" data-t="Worked example">
+<p>cwnd = 20 MSS, rwnd = 12 MSS, MSS = 1,000 bytes, RTT = 100 ms. What is the approximate sending rate?</p>
+<p>Window = min(20, 12) = 12 MSS = 12,000 bytes = 96,000 bits. One window is sent per RTT: 96,000 bits ÷ 0.1 s = <strong>960,000 bps ≈ 0.96 Mbps</strong>. Here the receiver is the limit, not the network.</p>
+</div>
+
+<h3 id="l11-ss">Phase 1: slow start</h3>
+<p>The name is misleading. It <em>starts</em> slow but <strong>grows exponentially</strong>.</p>
+<ul>
+<li>Begin with a small cwnd (1 MSS in examples).</li>
+<li>Every RTT in which the packets are ACKed, <strong>double</strong> cwnd: 1 → 2 → 4 → 8 → 16 …</li>
+<li>From class: send one car on the road; if it gets through, send two; then four.</li>
+<li>Purpose: find the usable capacity quickly without knowing it in advance.</li>
+</ul>
+<p>Slow start ends when one of two things happens:</p>
+<ol>
+<li>cwnd reaches the <strong>slow start threshold (ssthresh)</strong> → switch to congestion avoidance.</li>
+<li>A <strong>packet loss</strong> occurs (timeout or three duplicate ACKs).</li>
+</ol>
+<div class="formula">on loss: ssthresh = cwnd / 2<small>half of the congestion window at the moment congestion was detected</small></div>
+
+<h3 id="l11-ca">Phase 2: congestion avoidance</h3>
+<p>Past ssthresh, TCP is near the capacity it found last time, so it becomes careful. Instead of doubling, it adds just <strong>1 MSS per RTT</strong>: 16 → 17 → 18 → 19 … This is a gentle, <strong>linear</strong> increase.</p>
+
+<h3 id="l11-aimd">AIMD: Additive Increase, Multiplicative Decrease</h3>
+<div class="tw"><table>
+<thead><tr><th>Part</th><th>Rule</th><th>When</th></tr></thead>
+<tbody>
+<tr><th>Additive Increase</th><td>cwnd = cwnd <strong>+ 1 MSS</strong> per RTT</td><td>Every RTT with no loss (probing for more bandwidth)</td></tr>
+<tr><th>Multiplicative Decrease</th><td>cwnd = cwnd <strong>× ½</strong></td><td>When loss is detected by three duplicate ACKs</td></tr>
+</tbody></table></div>
+<p>Increase slowly, decrease fast. Plotted over time, cwnd climbs in a straight line, drops by half, climbs again: the classic <strong>sawtooth</strong>.</p>
+<p><strong>Why AIMD gives fairness:</strong> when two connections share a bottleneck and both lose a packet, both halve. The one with the larger window gives up more. Both then add the same +1 per RTT. Repeat this and their windows move closer and closer until they share the link about equally.</p>
+
+<figure>
+<div class="svgw"><svg viewBox="0 0 660 300" role="img" aria-label="Graph of the congestion window over time showing slow start, congestion avoidance, a triple duplicate ACK and a timeout">
+  <g class="grid"><path d="M50 200H630M50 160H630M50 120H630M50 80H630M50 40H630"/></g>
+  <path class="ax" d="M50 20V240H635"/>
+  <g class="tm" text-anchor="end"><text x="44" y="244">0</text><text x="44" y="204">4</text><text x="44" y="164">8</text><text x="44" y="124">12</text><text x="44" y="84">16</text><text x="44" y="44">20</text></g>
+  <text class="tm" x="14" y="130" transform="rotate(-90 14 130)" text-anchor="middle">cwnd (MSS)</text>
+  <text class="tm" x="340" y="262" text-anchor="middle">time (one step = 1 RTT)</text>
+  <path class="dash" d="M50 80H274M302 140H414M442 170H630"/>
+  <text class="to" x="56" y="74">ssthresh = 16</text><text class="to" x="330" y="156">ssthresh = 10</text><text class="to" x="560" y="186">ssthresh = 7</text>
+  <path class="ln" d="M50 230L78 220L106 200L134 160L162 80L190 70L218 60L246 50L274 40L302 140L330 130L358 120L386 110L414 100L442 230L470 220L498 200L526 170L554 160L582 150L610 140"/>
+  <g class="pt"><circle cx="50" cy="230" r="3"/><circle cx="78" cy="220" r="3"/><circle cx="106" cy="200" r="3"/><circle cx="134" cy="160" r="3"/><circle cx="162" cy="80" r="3"/><circle cx="190" cy="70" r="3"/><circle cx="218" cy="60" r="3"/><circle cx="246" cy="50" r="3"/><circle cx="302" cy="140" r="3"/><circle cx="330" cy="130" r="3"/><circle cx="358" cy="120" r="3"/><circle cx="386" cy="110" r="3"/><circle cx="442" cy="230" r="3"/><circle cx="470" cy="220" r="3"/><circle cx="498" cy="200" r="3"/><circle cx="526" cy="170" r="3"/><circle cx="554" cy="160" r="3"/><circle cx="582" cy="150" r="3"/><circle cx="610" cy="140" r="3"/></g>
+  <g class="ptr"><circle cx="274" cy="40" r="5"/><circle cx="414" cy="100" r="5"/></g>
+  <text class="ta" x="100" y="140" text-anchor="middle">slow start</text><text class="tm" x="100" y="154" text-anchor="middle">(doubles)</text>
+  <text class="ta" x="200" y="30" text-anchor="middle">congestion avoidance (+1)</text>
+  <text class="tr" x="286" y="28">3 dup ACKs → halve</text>
+  <text class="tr" x="424" y="92">timeout → back to 1</text>
+  <text class="tm" x="630" y="290" text-anchor="end">cwnd: 1 2 4 8 16 · 17 18 19 20 · 10 11 12 13 14 · 1 2 4 7 8 9 10</text>
+</svg></div>
+<figcaption>Slow start doubles up to ssthresh, congestion avoidance adds 1 per RTT, and the two kinds of loss cause two different drops.</figcaption>
+</figure>
+
+<h3 id="l11-loss">Two kinds of loss, two reactions</h3>
+<p>TCP detects loss in two ways, and they mean different things.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>Timeout</th><th>Three duplicate ACKs</th></tr></thead>
+<tbody>
+<tr><th>What happened</th><td>No ACK came back at all before the timer ran out</td><td>The sender got the same ACK three extra times (e.g. ACK 5, ACK 5, ACK 5)</td></tr>
+<tr><th>What it tells the sender</th><td><strong>Severe</strong> congestion: nothing is getting through</td><td><strong>Mild</strong>: one segment is missing, but later segments are arriving (each one triggers a duplicate ACK)</td></tr>
+<tr><th>ssthresh becomes</th><td>cwnd / 2</td><td>cwnd / 2</td></tr>
+<tr><th>cwnd becomes</th><td><strong>1 MSS</strong> (full reset)</td><td><strong>cwnd / 2</strong> (halved)</td></tr>
+<tr><th>Next phase</th><td><strong>Slow start</strong> again</td><td><strong>Congestion avoidance</strong> directly (this is fast recovery)</td></tr>
+<tr><th>Speed of detection</th><td>Slow (must wait for the timer)</td><td>Fast</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>Fast retransmit:</strong> on three duplicate ACKs, re-send the missing segment <strong>immediately</strong>, without waiting for the timer.</li>
+<li><strong>Fast recovery:</strong> used right after fast retransmit. Instead of dropping back to slow start, TCP halves cwnd and continues in congestion avoidance. Performance stays smoother.</li>
+</ul>
+<div class="box note" data-t="Two special timeout cases (from class)">
+<p><strong>Lost ACK:</strong> the data arrived but its ACK was lost. The sender times out and re-sends; the receiver recognises the duplicate by its sequence number and discards it. <strong>Premature timeout:</strong> the timer was too short; the ACK was only late. The sender re-sends needlessly.</p>
+</div>
+
+<div class="box example" data-t="Worked trace — do this kind of question step by step">
+<p>Start: cwnd = 1 MSS, ssthresh = 8 MSS. A triple duplicate ACK occurs when cwnd = 12. Later a timeout occurs when cwnd = 8. Write cwnd for each RTT.</p>
+<div class="tw"><table>
+<thead><tr><th>RTT</th><th class="num">cwnd</th><th class="num">ssthresh</th><th>Phase / event</th></tr></thead>
+<tbody>
+<tr><td>1</td><td class="num">1</td><td class="num">8</td><td>Slow start</td></tr>
+<tr><td>2</td><td class="num">2</td><td class="num">8</td><td>Slow start (×2)</td></tr>
+<tr><td>3</td><td class="num">4</td><td class="num">8</td><td>Slow start (×2)</td></tr>
+<tr><td>4</td><td class="num">8</td><td class="num">8</td><td>Reached ssthresh → switch to congestion avoidance</td></tr>
+<tr><td>5–8</td><td class="num">9, 10, 11, 12</td><td class="num">8</td><td>Congestion avoidance (+1 each)</td></tr>
+<tr class="hl"><td>—</td><td class="num">12 → 6</td><td class="num">6</td><td><strong>3 duplicate ACKs:</strong> ssthresh = 12/2 = 6, cwnd = 6, fast recovery</td></tr>
+<tr><td>9–10</td><td class="num">7, 8</td><td class="num">6</td><td>Congestion avoidance (+1 each)</td></tr>
+<tr class="hl"><td>—</td><td class="num">8 → 1</td><td class="num">4</td><td><strong>Timeout:</strong> ssthresh = 8/2 = 4, cwnd = 1, slow start</td></tr>
+<tr><td>11–13</td><td class="num">1, 2, 4</td><td class="num">4</td><td>Slow start up to the new ssthresh</td></tr>
+<tr><td>14–15</td><td class="num">5, 6</td><td class="num">4</td><td>Congestion avoidance</td></tr>
+</tbody></table></div>
+<p class="small">If doubling would jump past ssthresh (e.g. cwnd 4, ssthresh 7), cwnd stops at ssthresh (7) and continues with +1.</p>
+</div>
+
+<div class="box warn" data-t="About the class slide &quot;Step-by-step example for fast recovery&quot;">
+<p>The slide assumes ssthresh = 8, cwnd = 16, congestion avoidance, and shows: RTT 1 → 17, RTT 2 → 18, RTT 3 → <strong>9</strong> (multiplicative decrease, cwnd / 2), RTT 4 → 10.</p>
+<p>Halving 18 to 9 and continuing with +1 is exactly <strong>fast recovery, the reaction to three duplicate ACKs</strong>, which matches the slide's title. But the row is labelled "tcp timeout". By the lecture's own AIMD slide ("cut to 1 MSS when loss detected by timeout"), a real timeout would give cwnd = 1 and ssthresh = 9. Learn the rule from the table above: <strong>3 duplicate ACKs → halve; timeout → 1</strong>. If an exam question copies this slide, state which loss event you are assuming.</p>
+</div>
+
+<h4>TCP CUBIC (awareness only)</h4>
+<p>Is there a better way than AIMD to probe for bandwidth? <strong>CUBIC</strong> remembers the window size at which loss last happened (W<sub>max</sub>) and grows the window as a <strong>cubic function of time</strong>: fast when far below W<sub>max</sub>, slow when close to it. It is the default in Linux and the most common TCP on web servers.</p>
+
+<h3 id="l11-tls">Where TLS and QUIC sit</h3>
+<p>TLS needs every byte delivered in order, because one missing byte breaks decryption. It gets that from TCP: TLS <strong>rides on top of TCP's reliable byte stream</strong>.</p>
+<figure>
+<div class="two">
+<div class="flow col">
+  <div class="node a"><b>HTTP/1.1 or HTTP/2</b></div>
+  <div class="node v"><b>TLS</b><small>encryption</small></div>
+  <div class="node o"><b>TCP</b><small>reliability, ordering, congestion control</small></div>
+  <div class="node"><b>IP</b></div>
+</div>
+<div class="flow col">
+  <div class="node a"><b>HTTP/3</b></div>
+  <div class="node v"><b>QUIC</b><small>reliability + ordering per stream + congestion control + TLS 1.3 built in</small></div>
+  <div class="node o"><b>UDP</b></div>
+  <div class="node"><b>IP</b></div>
+</div>
+</div>
+<figcaption>Left: HTTPS = HTTP over TLS over TCP. Right: HTTP/3 = HTTP over QUIC over UDP.</figcaption>
+</figure>
+<p><strong>QUIC re-implements reliability over UDP.</strong> UDP gives it nothing but ports, so QUIC itself does acknowledgments, retransmission, flow control, and congestion control, with the same ideas as TCP. Because it does this per stream, one lost packet no longer blocks the other streams (see <a href="02-application-layer.html#l5-versions">HTTP/3</a>).</p>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Define congestion in one sentence.</summary><p>Offered load exceeds network capacity, causing queues to build (delay) and buffers to overflow (loss).</p></details>
+<details><summary>cwnd vs rwnd: who sets each and what does each protect?</summary><p>cwnd is set by the sender and protects the network. rwnd is set by the receiver and protects the receiver's buffer. The sender uses the smaller of the two.</p></details>
+<details><summary>How does cwnd grow in slow start, and how in congestion avoidance?</summary><p>Slow start: doubles every RTT (exponential). Congestion avoidance: +1 MSS every RTT (linear).</p></details>
+<details><summary>cwnd = 24 MSS and three duplicate ACKs arrive. New ssthresh and cwnd? Next phase?</summary><p>ssthresh = 12, cwnd = 12, congestion avoidance (fast recovery).</p></details>
+<details><summary>cwnd = 24 MSS and a timeout occurs. New ssthresh and cwnd? Next phase?</summary><p>ssthresh = 12, cwnd = 1, slow start.</p></details>
+<details><summary>Why is a timeout treated more harshly than three duplicate ACKs?</summary><p>Duplicate ACKs prove later segments are still getting through, so congestion is mild. A timeout means nothing is being acknowledged, which suggests severe congestion.</p></details>
+<details><summary>Start cwnd = 2, ssthresh = 16. No loss. List cwnd for the first 6 RTTs.</summary><p>2, 4, 8, 16, 17, 18.</p></details>
+<details><summary>What does AIMD stand for, and what shape does it produce?</summary><p>Additive Increase (+1 MSS per RTT), Multiplicative Decrease (×½ on loss). It produces a sawtooth.</p></details>
+<details><summary>Why does TLS run over TCP, and what does QUIC do differently?</summary><p>TLS needs a reliable, in-order byte stream, which TCP provides. QUIC runs over UDP and implements reliability, ordering, and congestion control itself, with TLS 1.3 built in.</p></details>
+</div>
+
+<p class="watch" data-topics="congestion-control"><a class="search" href="https://www.youtube.com/results?search_query=TCP+congestion+control+slow+start+AIMD+explained">Search YouTube: TCP congestion control, slow start, AIMD</a></p>
+</section>
+
+<!-- ============================================================ L12 -->
+<section class="lec" id="l12">
+<header class="lec-head">
+  <p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lecture 12</span></p>
+  <h2>Lecture 12 — Cloud load balancing: ALB vs NLB, Elastic Load Balancing, high availability</h2>
+  <p class="oneline">A load balancer stands in front of many servers and shares requests among the healthy ones, so the site survives both crowds and crashes.</p>
+</header>
+
+<h3>Why a load balancer?</h3>
+<p>The question from class: 10,000 users are trying to reach your website and one server suddenly crashes. Can the website survive?</p>
+<p>A <strong>load balancer</strong> distributes incoming traffic across multiple servers. Its goals:</p>
+<ul>
+<li><strong>Scalability:</strong> handle more users by adding servers behind it.</li>
+<li><strong>Availability:</strong> if a server dies, send traffic to the others.</li>
+<li><strong>Manageability:</strong> users see one address; you can add, remove, or update servers behind it without anyone noticing.</li>
+</ul>
+<p><strong>Elastic Load Balancing (ELB)</strong> is the AWS service name. Its two main types differ in <em>how the load balancer makes its decision</em>, which is to say which layer it reads.</p>
+
+<h3 id="l12-nlb">Network Load Balancer (NLB) — Layer 4</h3>
+<div class="box analogy" data-t="Class analogy">
+<p>A postal sorter who reads <strong>only the ZIP code</strong>, not the letter inside.</p>
+</div>
+<ul>
+<li>Works at the <strong>transport layer</strong>. It sees TCP/UDP packets, <strong>not</strong> HTTP requests, URLs, or headers.</li>
+<li>Decides using the <strong>4-tuple</strong>: source IP, source port, destination IP, destination port.</li>
+<li><strong>Benefits:</strong> ultra-high throughput, very low latency, preserves the client's source IP, excellent for any TCP/UDP workload.</li>
+<li><strong>Limitation:</strong> it cannot tell <code>company.com/api/users</code> from <code>company.com/images/logo.png</code>, because it cannot read the URL.</li>
+</ul>
+<ol class="steps">
+<li>Client connects; the NLB receives the TCP/UDP packet.</li>
+<li>NLB reads the 4-tuple, e.g. <code>203.0.113.10 : 51514 → 198.51.100.25 : 443</code>.</li>
+<li>It forwards the connection to a <strong>healthy</strong> backend target, e.g. <code>10.0.1.10:443</code>.</li>
+<li>The client's original source IP is preserved all the way to the server.</li>
+</ol>
+
+<h3 id="l12-alb">Application Load Balancer (ALB) — Layer 7</h3>
+<ul>
+<li>Works at the <strong>application layer</strong>. It understands <strong>HTTP requests, URLs, headers, cookies, and host names</strong>.</li>
+<li><strong>Path-based routing:</strong> <code>/api/*</code> → API servers, <code>/images/*</code> → image servers.</li>
+<li><strong>Host-based routing:</strong> <code>shop.company.com</code> → shop servers, <code>blog.company.com</code> → blog servers.</li>
+<li><strong>TLS termination:</strong> HTTPS needs a handshake, encryption, and certificates. The ALB handles all of it, so the servers behind it do not have to.</li>
+</ul>
+<figure>
+<div class="flow">
+  <div class="node a"><b>Client</b></div>
+  <div class="arr">→<small>HTTPS</small></div>
+  <div class="node o"><b>ALB</b><small>TLS termination · reads URL</small></div>
+  <div class="arr">→<small>HTTP</small></div>
+  <div class="node g"><b>/api/* → API target group</b></div>
+  <div class="node g"><b>/images/* → image target group</b></div>
+</div>
+</figure>
+
+<div class="box exam" data-t="NLB vs ALB — the table from class">
+<div class="tw"><table>
+<thead><tr><th>Feature</th><th>NLB</th><th>ALB</th></tr></thead>
+<tbody>
+<tr><th>Layer</th><td>4 (Transport)</td><td>7 (Application)</td></tr>
+<tr><th>TCP/UDP traffic</th><td>Yes</td><td>No (HTTP/HTTPS only)</td></tr>
+<tr><th>HTTP aware</th><td>No</td><td>Yes</td></tr>
+<tr><th>URL (path/host) routing</th><td>No</td><td>Yes</td></tr>
+<tr><th>Header inspection</th><td>No</td><td>Yes</td></tr>
+<tr><th>TLS termination</th><td>Limited</td><td>Yes</td></tr>
+<tr><th>Source IP preservation</th><td>Yes</td><td>Usually via headers (<code>X-Forwarded-For</code>)</td></tr>
+<tr><th>Latency</th><td>Lowest</td><td>Slightly higher</td></tr>
+<tr><th>Pick it for</th><td>Games, streaming, databases, anything non-HTTP, extreme performance</td><td>Websites, REST APIs, microservices</td></tr>
+</tbody></table></div>
+</div>
+
+<h3 id="l12-health">Target groups and health checks</h3>
+<p><strong>Problem:</strong> if server S1 crashes, how does the load balancer know not to send traffic there?</p>
+<ul>
+<li>A <strong>target group</strong> is the set of servers (targets) the load balancer can send to. It is the health-monitoring layer between the load balancer and the servers.</li>
+<li>A <strong>health check</strong> is a small test request the load balancer sends to each target at a regular interval, for example <code>GET /health</code> every 30 seconds.</li>
+</ul>
+<ol>
+<li>The load balancer sends the probe.</li>
+<li>The server responds (e.g. <code>200 OK</code>).</li>
+<li>The load balancer marks the target <strong>Healthy</strong>.</li>
+<li>Traffic continues to it.</li>
+</ol>
+<p>If a target fails several checks in a row it is marked <strong>Unhealthy</strong> and <strong>automatically removed</strong>: no traffic goes to it. Checks continue; when it passes again it is <strong>automatically added back</strong>. This is called <strong>self-healing</strong>.</p>
+
+<h3 id="l12-asg">Elasticity and Auto Scaling Groups</h3>
+<p>Morning traffic is 500 users; evening traffic is 50,000. Should you keep 100 servers running all day? No.</p>
+<p><strong>Elasticity</strong> means: increase capacity when demand rises, decrease it when demand falls.</p>
+<p>An <strong>Auto Scaling Group (ASG)</strong> does this automatically. It:</p>
+<ul>
+<li><strong>launches</strong> instances when load goes up (<strong>scaling out</strong>: EC2-1 → EC2-1, EC2-2, EC2-3),</li>
+<li><strong>terminates</strong> instances when load goes down (<strong>scaling in</strong>),</li>
+<li><strong>maintains the desired capacity</strong>: if an instance dies, it starts a replacement.</li>
+</ul>
+<p>New instances are registered into the target group automatically, so the load balancer starts using them as soon as they pass health checks.</p>
+
+<h3 id="l12-ha">Multi-AZ and high availability</h3>
+<p><strong>Problem:</strong> all your servers are in <code>us-east-1a</code>. A power, network, or storage failure hits that data centre. The whole application is down.</p>
+<p>An <strong>Availability Zone</strong> is a physically separate AWS data centre (<code>us-east-1a</code>, <code>us-east-1b</code>, <code>us-east-1c</code>), each isolated from the others.</p>
+<p><strong>High availability (HA)</strong> means the service stays available even when components fail. The principle: <strong>no single point of failure</strong>. ❌ one server, ❌ one AZ, ❌ one database.</p>
+<p>What if the load balancer itself fails? An ALB is managed by AWS and is itself deployed across multiple AZs.</p>
+<figure>
+<div class="flow col" style="margin-bottom:8px">
+  <div class="node a"><b>Users</b></div>
+  <div class="arr">↓</div>
+  <div class="node v"><b>Route 53</b><small>name → load balancer</small></div>
+  <div class="arr">↓</div>
+  <div class="node o"><b>Application Load Balancer</b><small>spans both AZs · TLS (ACM) · health checks</small></div>
+  <div class="arr">↓</div>
+</div>
+<div class="nest vpc"><span class="cap">VPC — Auto Scaling Group + target group</span>
+  <div class="grid2">
+    <div class="nest az"><span class="cap">AZ us-east-1a</span><span class="chip">EC2 ✓ healthy</span><span class="chip">EC2 ✓ healthy</span></div>
+    <div class="nest az"><span class="cap">AZ us-east-1b</span><span class="chip">EC2 ✓ healthy</span><span class="chip">EC2 ✗ unhealthy (removed)</span></div>
+  </div>
+</div>
+<figcaption>If one instance fails, health checks remove it. If a whole AZ fails, the other AZ keeps serving. If traffic grows, the ASG adds instances.</figcaption>
+</figure>
+<p class="small muted">At global scale (the "final architecture" slide), the same idea is stacked: a global DNS load balancer (Route 53) → a regional load balancer per Region → load balancers per zone → backend services.</p>
+
+<h3 id="l12-capstone">Capstone: one request, end to end</h3>
+<p>This trace ties Lectures 1–12 together. It is a likely long-answer question.</p>
+<ol class="steps">
+<li><strong>DNS (Route 53).</strong> The browser asks for <code>shop.example.com</code>. The resolver walks root → TLD → Route 53 (authoritative), which returns the load balancer's IP according to its routing policy. <span class="muted small">Lecture 7</span></li>
+<li><strong>TCP handshake.</strong> SYN → SYN-ACK → ACK with the load balancer on port 443. <span class="muted small">Lecture 9</span></li>
+<li><strong>TLS handshake (ACM).</strong> ClientHello → ServerHello + certificate (issued by ACM, attached to the ALB) → validation → key exchange → encrypted. TLS terminates at the ALB. <span class="muted small">Lecture 6</span></li>
+<li><strong>HTTP routing (ALB).</strong> The browser sends <code>GET /api/cart</code>. The ALB reads the host and path and picks the matching target group. <span class="muted small">Lectures 5, 12</span></li>
+<li><strong>Healthy target.</strong> Among the targets in that group, the ALB chooses one that is passing health checks, in any AZ. The Auto Scaling Group keeps enough of them running. <span class="muted small">Lecture 12</span></li>
+<li><strong>Congestion-controlled response.</strong> The server's response travels back over TCP: slow start, then AIMD, limited by min(cwnd, rwnd), with lost segments re-sent. <span class="muted small">Lectures 10–11</span></li>
+<li><strong>Close.</strong> FIN → ACK → FIN → ACK, or the connection is kept alive for the next request. <span class="muted small">Lecture 9</span></li>
+</ol>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>State the three goals of a load balancer.</summary><p>Scalability, availability, manageability.</p></details>
+<details><summary>You need to send <code>/api/*</code> to one group of servers and <code>/static/*</code> to another. ALB or NLB? Why?</summary><p>ALB. Path-based routing needs to read the HTTP URL, which only a Layer 7 load balancer can do. An NLB sees only IP addresses and ports.</p></details>
+<details><summary>You run a multiplayer game server over UDP and need the lowest latency. ALB or NLB?</summary><p>NLB. It handles TCP/UDP at Layer 4 with very low latency. An ALB handles only HTTP/HTTPS.</p></details>
+<details><summary>What is a health check, and what happens when a target fails it?</summary><p>A periodic test request (e.g. <code>GET /health</code> every 30 s) from the load balancer to each target. A failing target is marked unhealthy and removed from rotation; it is added back automatically when it passes again.</p></details>
+<details><summary>What is the difference between a target group and an Auto Scaling Group?</summary><p>A target group is the list of targets a load balancer routes to and health-checks. An Auto Scaling Group creates and removes instances to match demand and keep a desired count.</p></details>
+<details><summary>Why deploy in more than one Availability Zone?</summary><p>To remove the data centre as a single point of failure. If one AZ fails, instances in another AZ keep serving.</p></details>
+<details><summary>What does TLS termination at the ALB mean?</summary><p>The ALB performs the TLS handshake and decrypts traffic using its certificate; it then forwards requests to the backends, which do not need to handle TLS themselves.</p></details>
+<details><summary>Put in order: TLS handshake, DNS lookup, HTTP request, TCP handshake.</summary><p>DNS lookup → TCP handshake → TLS handshake → HTTP request.</p></details>
+</div>
+
+<p class="watch" data-topics="load-balancer auto-scaling-ha"><a class="search" href="https://www.youtube.com/results?search_query=AWS+ALB+vs+NLB+explained">Search YouTube: AWS ALB vs NLB</a></p>
+</section>
+
+<div class="pager"><a href="02-application-layer.html">← Application layer</a><a href="04-ip-addressing.html">Next: IP addressing →</a></div>
+
+</main>
+</div>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>

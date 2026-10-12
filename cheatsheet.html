@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mid-sem Cheat Sheet — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="On this page"></nav>
+<main>
+
+<p class="tags"><span class="tag mid">Mid-sem</span><span class="tag">Lectures 1–13</span><span class="tag">Last-day revision</span></p>
+<h1>Mid-sem Cheat Sheet</h1>
+<p class="lede">Everything worth memorising, on one page. Read the full notes first; use this the night before and the morning of the exam. Each heading links back to the full explanation.</p>
+
+<section class="lec" id="formulas">
+<header class="lec-head"><p class="tags"><span class="tag">Formulas</span></p><h2>Formulas and key facts</h2></header>
+<div class="tw"><table>
+<thead><tr><th>Concept</th><th>Formula / fact</th><th>Watch out for</th></tr></thead>
+<tbody>
+<tr><th>Transmission delay</th><td><strong>L / R</strong> (packet bits ÷ link rate in bps)</td><td>Bytes × 8 = bits. 1 Mbps = 10⁶ bps.</td></tr>
+<tr><th>Propagation delay</th><td><strong>d / s</strong> (metres ÷ speed; s ≈ 2 × 10⁸ m/s in fibre)</td><td>km × 1,000 = m. Does not depend on link rate.</td></tr>
+<tr><th>Total nodal delay</th><td>processing + queuing + transmission + propagation</td><td>Only the last two are calculated</td></tr>
+<tr><th>Throughput</th><td>min of all link rates on the path (the bottleneck)</td><td>Not your ISP plan</td></tr>
+<tr><th>Full-mesh links</th><td>n (n − 1) / 2</td><td>Star needs only n</td></tr>
+<tr><th>Stop-and-wait utilization</th><td>T<sub>frame</sub> / (T<sub>frame</sub> + 2 · T<sub>prop</sub>)</td><td></td></tr>
+<tr><th>Sender rate</th><td>≈ min(cwnd, rwnd) / RTT</td><td>cwnd = network, rwnd = receiver</td></tr>
+<tr><th>AIMD</th><td>+1 MSS per RTT; × ½ on loss</td><td>Timeout → cwnd = 1</td></tr>
+<tr><th>ssthresh after loss</th><td>cwnd / 2</td><td>For both kinds of loss</td></tr>
+<tr><th>Usable IPv4 hosts</th><td><strong>2<sup>(32 − n)</sup> − 2</strong></td><td>− 2 = network + broadcast</td></tr>
+<tr><th>AWS usable hosts</th><td>2<sup>(32 − n)</sup> − 5</td><td>/24 → 251</td></tr>
+<tr><th>Subnets from borrowed bits</th><td>2<sup>k</sup> subnets from k borrowed bits</td><td>New prefix = n + k</td></tr>
+<tr><th>Block size ("magic number")</th><td>256 − mask value in the interesting octet</td><td>/26 → 64</td></tr>
+<tr><th>Private IPv4 ranges</th><td>10.0.0.0/8 · 172.16.0.0/12 · 192.168.0.0/16</td><td>172.16 – 172.<strong>31</strong> only</td></tr>
+<tr><th>TCP handshake</th><td>SYN → SYN-ACK → ACK</td><td>ack = other side's seq + 1</td></tr>
+<tr><th>TCP teardown</th><td>FIN → ACK → FIN → ACK</td><td>4 messages</td></tr>
+<tr><th>TLS handshake</th><td>ClientHello → ServerHello + Certificate → Authentication → Key exchange → Finished</td><td>TLS 1.3 ≈ 1 RTT</td></tr>
+<tr><th>DHCP sequence</th><td>Discover → Offer → Request → Ack (DORA)</td><td>D and R are broadcasts</td></tr>
+</tbody></table></div>
+</section>
+
+<section class="lec" id="layers">
+<header class="lec-head"><p class="tags"><span class="tag">Lecture 3–4</span></p><h2>Layers, PDUs, devices <a class="small" href="01-how-internet-works.html#l3">→ full notes</a></h2></header>
+<div class="tw"><table>
+<thead><tr><th>TCP/IP layer</th><th>OSI #</th><th>PDU</th><th>Address</th><th>Protocols</th><th>Device</th><th>AWS</th></tr></thead>
+<tbody>
+<tr><th>Application</th><td>5–7</td><td>Message</td><td>—</td><td>HTTP, DNS, SMTP</td><td>Host</td><td>Route 53, ALB</td></tr>
+<tr><th>Transport</th><td>4</td><td>Segment</td><td>Port</td><td>TCP, UDP</td><td>Host</td><td>NLB</td></tr>
+<tr><th>Network</th><td>3</td><td>Datagram</td><td>IP</td><td>IP</td><td>Router</td><td>VPC route tables, IGW</td></tr>
+<tr><th>Link</th><td>2</td><td>Frame</td><td>MAC</td><td>Ethernet, WiFi</td><td>Switch</td><td>—</td></tr>
+<tr><th>Physical</th><td>1</td><td>Bits</td><td>—</td><td>—</td><td>Hub / cabling</td><td>—</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>OSI top-down:</strong> All People Seem To Need Data Processing = Application, Presentation, Session, Transport, Network, Data Link, Physical.</li>
+<li><strong>OSI:</strong> 7 layers, ISO, conceptual. <strong>TCP/IP:</strong> 4 layers (5 in the textbook), DARPA, actually used.</li>
+<li><strong>Encapsulation:</strong> going down, each layer adds a header. Decapsulation: going up, each layer removes its own.</li>
+<li><strong>Presentation layer</strong> = translate, compress, encrypt. <strong>Session layer</strong> = start, manage, end the conversation.</li>
+</ul>
+<div class="tw"><table>
+<thead><tr><th>Device</th><th>Layer</th><th>Uses</th><th>Collision domains</th><th>Broadcast domains</th></tr></thead>
+<tbody>
+<tr><th>Hub</th><td>L1</td><td>Nothing (repeats to all ports)</td><td>One for all ports</td><td>One</td></tr>
+<tr><th>Switch</th><td>L2</td><td>MAC address</td><td>One per port</td><td>One</td></tr>
+<tr><th>Router</th><td>L3</td><td>IP address</td><td>One per port</td><td>One per port</td></tr>
+<tr><th>Firewall</th><td>L3–L7</td><td>IPs + ports (and more)</td><td colspan="2">—</td></tr>
+<tr><th>Load balancer</th><td>L4 / L7</td><td>IP+port, or HTTP content</td><td colspan="2">—</td></tr>
+</tbody></table></div>
+<p><strong>Topologies:</strong> star = cheap, easy, single point of failure at the centre. Mesh = most resilient, most expensive. Hybrid = mix; real networks. Trade-off: cost vs resilience.</p>
+<p><strong>Switching:</strong> circuit = reserved path, guaranteed, wasteful when idle. Packet = shared on demand (statistical multiplexing), store-and-forward, efficient and resilient, no guarantees.</p>
+<p><strong>AWS:</strong> Region ⊃ Availability Zones ⊃ data centres. Edge Locations = CDN caches near users. VPC = your private software-defined network. Default VPC: 172.31.0.0/16, a default subnet per AZ, a route table, an Internet Gateway.</p>
+</section>
+
+<section class="lec" id="ports">
+<header class="lec-head"><p class="tags"><span class="tag">Lecture 9</span></p><h2>Ports and transport <a class="small" href="03-transport-layer.html#l9">→ full notes</a></h2></header>
+<div class="tw"><table>
+<thead><tr><th class="num">Port</th><th>Service</th><th class="num">Port</th><th>Service</th></tr></thead>
+<tbody>
+<tr><td class="num">22</td><td>SSH</td><td class="num">110</td><td>POP3 (995 secure)</td></tr>
+<tr><td class="num">25 / 587</td><td>SMTP</td><td class="num">143</td><td>IMAP (993 secure)</td></tr>
+<tr><td class="num">53</td><td>DNS</td><td class="num">67 / 68</td><td>DHCP</td></tr>
+<tr><td class="num">80</td><td>HTTP</td><td class="num">443</td><td>HTTPS</td></tr>
+</tbody></table></div>
+<div class="tw"><table>
+<thead><tr><th></th><th>UDP</th><th>TCP</th></tr></thead>
+<tbody>
+<tr><th>Connection</th><td>None</td><td>3-way handshake</td></tr>
+<tr><th>Reliable / ordered</th><td>No / No</td><td>Yes / Yes</td></tr>
+<tr><th>Flow and congestion control</th><td>No</td><td>Yes</td></tr>
+<tr><th>Header</th><td>8 bytes</td><td>20+ bytes</td></tr>
+<tr><th>Demux key</th><td>2-tuple (dst IP, dst port)</td><td>4-tuple (src IP, src port, dst IP, dst port)</td></tr>
+<tr><th>Uses</th><td>DNS, live video, VoIP, games, QUIC</td><td>Web, email, files, SSH</td></tr>
+</tbody></table></div>
+<p><strong>Socket</strong> = IP + port. <strong>Network layer</strong> = host-to-host. <strong>Transport layer</strong> = process-to-process.</p>
+</section>
+
+<section class="lec" id="rdt">
+<header class="lec-head"><p class="tags"><span class="tag">Lectures 10–11</span></p><h2>Reliability, flow control, congestion control <a class="small" href="03-transport-layer.html#l10">→ full notes</a></h2></header>
+<p><strong>Reliability tools:</strong> checksum (detect damage) · ACK/NAK (confirm) · timeout (detect loss) · retransmission (fix) · sequence numbers (order, duplicates).</p>
+<p><strong>Checksum:</strong> add the chunks → wrap any carry back in → flip all bits. Receiver adds everything; all 1s = OK.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>Go-Back-N</th><th>Selective Repeat</th></tr></thead>
+<tbody>
+<tr><th>ACKs</th><td>Cumulative</td><td>Individual</td></tr>
+<tr><th>Re-sends</th><td>Lost packet + all after it</td><td>Only the lost packet</td></tr>
+<tr><th>Out-of-order at receiver</th><td>Discarded</td><td>Buffered</td></tr>
+<tr><th>Receiver window</th><td>1</td><td>N</td></tr>
+</tbody></table></div>
+<p><strong>Real TCP</strong> = hybrid: cumulative ACKs + SACK + fast retransmit.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>rwnd — flow control</th><th>cwnd — congestion control</th></tr></thead>
+<tbody>
+<tr><th>Protects</th><td>Receiver's buffer</td><td>The network</td></tr>
+<tr><th>Set by</th><td>Receiver (in TCP header)</td><td>Sender (from loss/ACKs)</td></tr>
+</tbody></table></div>
+<div class="tw"><table>
+<thead><tr><th>Phase / event</th><th>cwnd</th><th>ssthresh</th><th>Next</th></tr></thead>
+<tbody>
+<tr><th>Slow start</th><td>× 2 per RTT (exponential)</td><td>—</td><td>Until cwnd ≥ ssthresh or loss</td></tr>
+<tr><th>Congestion avoidance</th><td>+ 1 MSS per RTT (linear)</td><td>—</td><td>Until loss</td></tr>
+<tr><th>3 duplicate ACKs</th><td>cwnd / 2</td><td>cwnd / 2</td><td>Fast retransmit, fast recovery → congestion avoidance</td></tr>
+<tr><th>Timeout</th><td><strong>1 MSS</strong></td><td>cwnd / 2</td><td>Slow start</td></tr>
+</tbody></table></div>
+<p><strong>Zero window:</strong> receiver's buffer full → advertises 0 → sender stops and probes. <strong>AIMD</strong> gives fairness and the sawtooth. <strong>HTTPS</strong> = HTTP over TLS over TCP. <strong>HTTP/3</strong> = HTTP over QUIC over UDP (QUIC redoes reliability itself).</p>
+</section>
+
+<section class="lec" id="app">
+<header class="lec-head"><p class="tags"><span class="tag">Lectures 5–8</span></p><h2>Application layer <a class="small" href="02-application-layer.html">→ full notes</a></h2></header>
+<p><strong>HTTP:</strong> stateless request–response. Request = request line (method, URL, version) + headers + optional body. Response = status line (version, code, message) + headers + body.</p>
+<div class="two">
+<div class="tw"><table>
+<thead><tr><th>Method</th><th>CRUD</th></tr></thead>
+<tbody><tr><td>POST</td><td>Create</td></tr><tr><td>GET</td><td>Read</td></tr><tr><td>PUT</td><td>Update</td></tr><tr><td>DELETE</td><td>Delete</td></tr></tbody>
+</table></div>
+<div class="tw"><table>
+<thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+<tbody><tr><td>2xx (200)</td><td>Success</td></tr><tr><td>3xx (301, 302, 304)</td><td>Redirect / not modified</td></tr><tr><td>4xx (403, 404)</td><td>Client error</td></tr><tr><td>5xx (500)</td><td>Server error</td></tr></tbody>
+</table></div>
+</div>
+<div class="tw"><table>
+<thead><tr><th></th><th>HTTP/1.1</th><th>HTTP/2</th><th>HTTP/3</th></tr></thead>
+<tbody>
+<tr><th>Transport</th><td>TCP, ~6 parallel connections</td><td>One TCP connection</td><td>QUIC over UDP</td></tr>
+<tr><th>Key feature</th><td>Persistent connections</td><td>Multiplexing, binary, HPACK, server push</td><td>Independent streams, 0-/1-RTT setup</td></tr>
+<tr><th>HoL blocking</th><td>Yes (HTTP level)</td><td>TCP level remains</td><td>None</td></tr>
+</tbody></table></div>
+<p><strong>REST:</strong> resources (URLs as nouns) · HTTP methods as CRUD · statelessness. <strong>Client–server</strong> = central always-on server. <strong>P2P</strong> = every peer is both.</p>
+<p><strong>HTTPS = HTTP + TLS.</strong> Goals: confidentiality, integrity, authentication. Asymmetric (public/private key pair, slow) bootstraps a symmetric session key (one key, fast). Certificate = domain ↔ public key, signed by a CA. Chain: leaf → intermediate → root. MITM is defeated by certificate validation. ACM = free auto-renewed certificates attached at a load balancer (TLS termination).</p>
+<div class="tw"><table>
+<thead><tr><th>DNS record</th><th>Maps</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>Name → IPv4</td></tr><tr><td>AAAA</td><td>Name → IPv6</td></tr><tr><td>CNAME</td><td>Name → another name (alias)</td></tr>
+<tr><td>MX</td><td>Domain → mail server</td></tr><tr><td>NS</td><td>Domain → its name servers</td></tr><tr><td>TXT</td><td>Free text (verification, SPF)</td></tr>
+</tbody></table></div>
+<p><strong>DNS:</strong> runs before TCP/TLS, UDP port 53. Hierarchy: Root → TLD → Authoritative. <strong>Recursive</strong> = resolver does the legwork and returns the answer. <strong>Iterative</strong> = servers return referrals. Caching with TTL is why changes propagate slowly.</p>
+<p><strong>Route 53 policies:</strong> Simple (one answer) · Weighted (split by %) · Latency-based (fastest Region) · Failover (standby on health-check failure) · Geolocation (by user's location).</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>SMTP</th><th>POP3</th><th>IMAP</th></tr></thead>
+<tbody>
+<tr><th>Job</th><td>Send (push)</td><td>Retrieve: download and delete</td><td>Retrieve: stays on server, synced</td></tr>
+<tr><th>Port</th><td>25 / 587</td><td>110</td><td>143</td></tr>
+<tr><th>Multi-device</th><td>—</td><td>Poor</td><td>Yes</td></tr>
+</tbody></table></div>
+<p><strong>Caching:</strong> hit = served from cache; miss = fetched from origin. <code>Cache-Control: max-age=N</code> = fresh for N seconds. <code>ETag</code> + <code>If-None-Match</code> → <code>304 Not Modified</code> (no body). <strong>CDN:</strong> edge servers near users; pull (fetch on first request) vs push (upload in advance); DNS steers users to the nearest edge. AWS: CloudFront + Edge Locations.</p>
+</section>
+
+<section class="lec" id="lb">
+<header class="lec-head"><p class="tags"><span class="tag">Lecture 12</span></p><h2>Load balancing <a class="small" href="03-transport-layer.html#l12">→ full notes</a></h2></header>
+<div class="tw"><table>
+<thead><tr><th></th><th>NLB</th><th>ALB</th></tr></thead>
+<tbody>
+<tr><th>Layer</th><td>4</td><td>7</td></tr>
+<tr><th>Routes by</th><td>IP + port (4-tuple), TCP/UDP</td><td>Host name, URL path, headers</td></tr>
+<tr><th>HTTP aware / TLS termination</th><td>No / limited</td><td>Yes / yes</td></tr>
+<tr><th>Strength</th><td>Highest throughput, lowest latency, keeps client IP</td><td>Smart routing for web apps</td></tr>
+</tbody></table></div>
+<p><strong>Goals:</strong> scalability, availability, manageability. <strong>Target group</strong> = the servers a load balancer sends to. <strong>Health check</strong> = periodic probe; unhealthy targets are removed and re-added automatically. <strong>Auto Scaling Group</strong> = adds/removes instances with demand (elasticity). <strong>Multi-AZ</strong> = no single point of failure = high availability.</p>
+<p><strong>End-to-end trace:</strong> Route 53 (DNS) → TCP handshake → TLS handshake (ACM certificate at ALB) → HTTP request routed by ALB → healthy target → response under congestion control → close.</p>
+</section>
+
+<section class="lec" id="ip">
+<header class="lec-head"><p class="tags"><span class="tag">Lecture 13</span></p><h2>IPv4 and CIDR <a class="small" href="04-ip-addressing.html#l13">→ full notes</a></h2></header>
+<div class="tw"><table>
+<thead><tr><th>Class</th><th>First octet</th><th>Default mask</th><th>Hosts per network</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>0–127</td><td>/8 · 255.0.0.0</td><td>~16.7 million</td></tr>
+<tr><td>B</td><td>128–191</td><td>/16 · 255.255.0.0</td><td>~65,000</td></tr>
+<tr><td>C</td><td>192–223</td><td>/24 · 255.255.255.0</td><td>254</td></tr>
+</tbody></table></div>
+<p><strong>Classful was abandoned</strong> because of wasted address space: need 500 → forced to take 65,000.</p>
+<div class="tw"><table>
+<thead><tr><th>Prefix</th><th>Last mask octet</th><th class="num">Block</th><th class="num">Usable</th><th>Prefix</th><th>Mask</th><th class="num">Usable</th></tr></thead>
+<tbody>
+<tr><td>/25</td><td>.128</td><td class="num">128</td><td class="num">126</td><td>/24</td><td>255.255.255.0</td><td class="num">254</td></tr>
+<tr><td>/26</td><td>.192</td><td class="num">64</td><td class="num">62</td><td>/23</td><td>255.255.254.0</td><td class="num">510</td></tr>
+<tr><td>/27</td><td>.224</td><td class="num">32</td><td class="num">30</td><td>/22</td><td>255.255.252.0</td><td class="num">1,022</td></tr>
+<tr><td>/28</td><td>.240</td><td class="num">16</td><td class="num">14</td><td>/20</td><td>255.255.240.0</td><td class="num">4,094</td></tr>
+<tr><td>/30</td><td>.252</td><td class="num">4</td><td class="num">2</td><td>/16</td><td>255.255.0.0</td><td class="num">65,534</td></tr>
+</tbody></table></div>
+<p><strong>Powers of 2:</strong> 2, 4, 8, 16, 32, 64, 128, 256, 512, 1,024, 2,048, 4,096.</p>
+<p><strong>Size a prefix:</strong> smallest h with 2<sup>h</sup> − 2 ≥ hosts; prefix = 32 − h. (500 hosts → h = 9 → /23.)</p>
+<p><strong>Find the network:</strong> block = 256 − mask octet; round the address down to a multiple of the block; broadcast = next block − 1.</p>
+</section>
+
+<section class="lec" id="drill">
+<header class="lec-head"><p class="tags"><span class="tag warn">Practice</span></p><h2>Ten-minute numericals drill</h2></header>
+<div class="quiz">
+<details><summary>1. A 2,500-byte packet on a 5 Mbps link. Transmission delay?</summary><p>20,000 bits ÷ 5,000,000 = 4 ms.</p></details>
+<details><summary>2. A 4,000 km fibre link. Propagation delay?</summary><p>4,000,000 ÷ 2 × 10⁸ = 20 ms.</p></details>
+<details><summary>3. Path links: 100, 25, 40 Mbps. Time to download a 50 MB file?</summary><p>Bottleneck 25 Mbps. 50 MB = 400 Mb. 400 ÷ 25 = 16 s.</p></details>
+<details><summary>4. Full mesh of 12 routers: how many links?</summary><p>12 × 11 / 2 = 66.</p></details>
+<details><summary>5. Page with 1 HTML + 8 images: RTTs for non-persistent vs persistent HTTP?</summary><p>Non-persistent 9 × 2 = 18. Persistent 1 + 9 = 10.</p></details>
+<details><summary>6. Client SYN seq = 500; server SYN-ACK seq = 900. Both ack numbers?</summary><p>SYN-ACK carries ack = 501. Final ACK carries ack = 901.</p></details>
+<details><summary>7. GBN, N = 4, 8 packets (0–7), only packet 2 lost once. Total transmissions?</summary><p>Window at timeout holds 2, 3, 4, 5 → 4 re-sent. 8 + 4 = 12. (Selective Repeat: 9.)</p></details>
+<details><summary>8. cwnd = 1, ssthresh = 16, no loss. cwnd after 7 RTTs (list them)?</summary><p>1, 2, 4, 8, 16, 17, 18.</p></details>
+<details><summary>9. cwnd = 30: (a) three duplicate ACKs, (b) timeout. New cwnd and ssthresh?</summary><p>(a) cwnd 15, ssthresh 15. (b) cwnd 1, ssthresh 15.</p></details>
+<details><summary>10. 10.20.30.100/27: network, broadcast, usable hosts?</summary><p>Block 32 → blocks 0, 32, 64, 96, 128. Network 10.20.30.96, broadcast 10.20.30.127, 30 usable (.97–.126).</p></details>
+<details><summary>11. Prefix for 120 hosts? For 2,000 hosts?</summary><p>120 → 2⁷ − 2 = 126 → /25. 2,000 → 2¹¹ − 2 = 2,046 → /21.</p></details>
+<details><summary>12. Stop-and-wait: T<sub>frame</sub> = 5 ms, T<sub>prop</sub> = 10 ms. Utilization?</summary><p>5 ÷ (5 + 20) = 20%.</p></details>
+</div>
+</section>
+
+<div class="pager"><a href="index.html">← Home</a><a href="01-how-internet-works.html">Start the full notes →</a></div>
+
+</main>
+</div>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5 · Routing and Network Security — CN Notes</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem('cn-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">CN <span>Notes</span></a>
+  <nav class="pages">
+    <a href="01-how-internet-works.html">1 · Internet</a>
+    <a href="02-application-layer.html">2 · Application</a>
+    <a href="03-transport-layer.html">3 · Transport</a>
+    <a href="04-ip-addressing.html">4 · IP &amp; Subnets</a>
+    <a href="05-routing-security.html">5 · Routing &amp; Security</a>
+    <a href="06-link-physical-cloud.html">6 · Link &amp; Physical</a>
+    <a href="cheatsheet.html">Cheat sheet</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="On this page"></nav>
+<main>
+
+<p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Weeks 9–10</span></p>
+<h1>Finding the Path: Routing Algorithms and Network Security</h1>
+<p class="lede">Not in the mid-sem. Route tables decide the next hop; this part explains who fills those tables, and then how networks are defended.</p>
+<div class="box note" data-t="How complete is this page?">
+<p>Only <strong>Lecture 17</strong> (Dijkstra and Bellman-Ford) had class slides when these notes were made. The other sections follow the syllabus and the textbook, and are shorter. Add your instructor's examples as those lectures happen.</p>
+</div>
+
+<!-- ============================================================ L17 -->
+<section class="lec" id="l17">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag">Lecture 17</span></p>
+  <h2>Lecture 17 — Routing algorithms: link-state (Dijkstra) and distance-vector (Bellman-Ford)</h2>
+  <p class="oneline">Routers work out the cheapest path to every destination in one of two ways: everyone gets the full map and computes alone, or everyone trusts what their neighbours tell them.</p>
+</header>
+
+<h3>Routing as a shortest-path problem</h3>
+<p>Model the network as a <strong>graph</strong>:</p>
+<ul>
+<li><strong>Nodes</strong> = routers. <strong>Edges</strong> = links. <strong>Edge weight</strong> = cost of the link (delay, hop count, or inverse of bandwidth).</li>
+<li><strong>Goal:</strong> each router finds the <strong>least-cost path</strong> to every destination.</li>
+<li><strong>Output:</strong> a forwarding table of <code>destination → next hop</code>. A router stores only the next hop, not the full path.</li>
+</ul>
+<div class="box analogy" data-t="Class analogy">
+<p>Google Maps does exactly this: intersections are nodes, roads are edges, live traffic time is the weight.</p>
+</div>
+<div class="tw"><table>
+<thead><tr><th></th><th>Link-state (global)</th><th>Distance-vector (decentralised)</th></tr></thead>
+<tbody>
+<tr><th>Idea</th><td>Everyone gets the whole map, then computes alone</td><td>No map. Trust only your neighbours' reports.</td></tr>
+<tr><th>Algorithm</th><td>Dijkstra</td><td>Bellman-Ford</td></tr>
+</tbody></table></div>
+
+<h3 id="l17-ls">Link-state routing and Dijkstra</h3>
+<ol>
+<li>Each router tells <strong>every</strong> other router about its own links and their costs (this is called <strong>flooding</strong>).</li>
+<li>Now every router holds the <strong>same complete map</strong>.</li>
+<li>Each router runs <strong>Dijkstra's algorithm</strong> on that map, with itself as the source.</li>
+</ol>
+<p><strong>Dijkstra in words:</strong> keep a set of visited nodes and a tentative distance for each node. Start with the source = 0 and everything else = ∞. Repeatedly pick the unvisited node with the smallest tentative distance, mark it visited, and <strong>relax</strong> its neighbours (if going through this node gives a shorter distance, update it).</p>
+<figure>
+<div class="svgw sm"><svg viewBox="0 0 520 300" role="img" aria-label="Five-node weighted graph from class with the shortest-path tree from A highlighted">
+  <g class="ln2"><path d="M70 60L250 45"/><path d="M250 45L400 140"/><path d="M400 140L450 260"/></g>
+  <g class="best"><path d="M70 60L100 200"/><path d="M100 200L250 45"/><path d="M100 200L400 140"/><path d="M100 200L450 260"/></g>
+  <g class="t" text-anchor="middle" font-weight="700">
+    <text x="160" y="42">4</text><text x="70" y="136">1</text><text x="158" y="116">2</text><text x="338" y="82">5</text>
+    <text x="250" y="160">5</text><text x="440" y="200">3</text><text x="270" y="248">8</text>
+  </g>
+  <g class="nd"><circle cx="70" cy="60" r="20"/><circle cx="250" cy="45" r="20"/><circle cx="100" cy="200" r="20"/><circle cx="400" cy="140" r="20"/><circle cx="450" cy="260" r="20"/></g>
+  <g class="t" text-anchor="middle" font-weight="700" font-size="15"><text x="70" y="65">A</text><text x="250" y="50">C</text><text x="100" y="205">B</text><text x="400" y="145">D</text><text x="450" y="265">E</text></g>
+</svg></div>
+<figcaption>The warm-up graph from class. Green edges are the shortest-path tree from A.</figcaption>
+</figure>
+<div class="box example" data-t="Dijkstra trace from A on this graph">
+<div class="tw"><table>
+<thead><tr><th>Step</th><th>Visit</th><th class="num">B</th><th class="num">C</th><th class="num">D</th><th class="num">E</th><th>What changed</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>A (0)</td><td class="num">1</td><td class="num">4</td><td class="num">∞</td><td class="num">∞</td><td>A's neighbours: B = 1, C = 4</td></tr>
+<tr><td>1</td><td>B (1)</td><td class="num">1 ✓</td><td class="num">3</td><td class="num">6</td><td class="num">9</td><td>Via B: C = 1 + 2 = 3 (better than 4), D = 1 + 5, E = 1 + 8</td></tr>
+<tr><td>2</td><td>C (3)</td><td class="num">1 ✓</td><td class="num">3 ✓</td><td class="num">6</td><td class="num">9</td><td>Via C: D = 3 + 5 = 8, not better than 6</td></tr>
+<tr><td>3</td><td>D (6)</td><td class="num">1 ✓</td><td class="num">3 ✓</td><td class="num">6 ✓</td><td class="num">9</td><td>Via D: E = 6 + 3 = 9, a tie with 9</td></tr>
+<tr><td>4</td><td>E (9)</td><td class="num">1 ✓</td><td class="num">3 ✓</td><td class="num">6 ✓</td><td class="num">9 ✓</td><td>Done</td></tr>
+</tbody></table></div>
+<p><strong>Shortest A → E costs 9</strong> (A–B–E, or equally A–B–D–E). A's forwarding table: every destination has next hop <strong>B</strong>.</p>
+</div>
+<div class="box warn" data-t="A mismatch between two class slides">
+<p>The "Tracing Dijkstra" slide lists the result A→C = 1, A→B = 3, A→D = 4, A→E = 7 via A–C–B–D–E. Those numbers do not fit the graph drawn on the warm-up slide (where A–B = 1 and A–C = 4); they would fit a graph with A–C = 1, C–B = 2, B–D = 1, D–E = 3. The method is identical. In an exam, always trace on the graph you are given.</p>
+</div>
+<p>Link-state converges fast and has no loops, but costs more messages and more CPU and memory per router. <strong>OSPF</strong> uses it.</p>
+
+<h3 id="l17-dv">Distance-vector routing and Bellman-Ford</h3>
+<ul>
+<li>Each router knows only its <strong>direct neighbours</strong> and the cost to reach them.</li>
+<li>Every router periodically sends its <strong>distance vector</strong> (its current list of "destination, cost") to its neighbours.</li>
+<li>On receiving a neighbour's vector, a router updates its own with the Bellman-Ford rule, and repeats until nothing changes. No global map is ever built.</li>
+</ul>
+<div class="formula">D<sub>x</sub>(dest) = min over each neighbour n of [ cost(x, n) + D<sub>n</sub>(dest) ]<small>"my cost to a destination = the cheapest of (cost to reach a neighbour + that neighbour's cost to the destination)"</small></div>
+<div class="box example" data-t="Worked example (from class)">
+<p>X's direct link to Z costs 7, so D<sub>X</sub>(Z) = 7. Then neighbour Y advertises D<sub>Y</sub>(Z) = 1, and cost(X, Y) = 2.</p>
+<p>D<sub>X</sub>(Z) = min(7, 2 + 1) = <strong>3</strong>. X now routes to Z via Y. X never saw the X–Y–Z path; it just trusted Y's number.</p>
+</div>
+<div class="box analogy" data-t="Class analogy">
+<p>Asking a local for directions in an unfamiliar town: no map, just their word plus the distance you still have to walk.</p>
+</div>
+
+<h3 id="l17-cti">The count-to-infinity problem</h3>
+<p>"Good news travels fast, bad news crawls." Take a line A — B — C with cost 1 on each link. B reaches A at cost 1. C reaches A at cost 2, going via B.</p>
+<ol>
+<li>Link A–B <strong>fails</strong>. B should announce "A is unreachable".</li>
+<li>But C's old vector says "I can reach A at cost 2". B believes it and sets its cost to A = 2 + 1 = <strong>3</strong> (via C). C's route was through B itself, but B cannot know that.</li>
+<li>C hears B's new cost 3 and updates to 3 + 1 = <strong>4</strong>.</li>
+<li>B hears 4 and updates to <strong>5</strong>. And so on, each out-bidding the other, toward infinity.</li>
+</ol>
+<div class="tw"><table>
+<thead><tr><th>Round</th><th class="num">B's cost to A</th><th class="num">C's cost to A</th></tr></thead>
+<tbody>
+<tr><td>0</td><td class="num">3</td><td class="num">2</td></tr>
+<tr><td>1</td><td class="num">3</td><td class="num">4</td></tr>
+<tr><td>2</td><td class="num">5</td><td class="num">4</td></tr>
+<tr><td>…</td><td class="num">…</td><td class="num">→ ∞</td></tr>
+</tbody></table></div>
+<p><strong>Root cause:</strong> routers act on second-hand information without the full map. (Class analogy: a broken-telephone rumour repeated back to its source.)</p>
+<h4>The fix: split horizon and poisoned reverse</h4>
+<ul>
+<li><strong>Split horizon:</strong> never advertise a route back to the neighbour you learned it from. C learned its route to A from B, so C does not tell B "I can reach A".</li>
+<li><strong>Poisoned reverse:</strong> go further and advertise it back with cost <strong>∞</strong>, an explicit "don't use me". C → B: "A costs ∞".</li>
+</ul>
+<p>This fixes the simple two-router loop. It does not solve every topology, but it is the standard first fix.</p>
+
+<div class="box exam" data-t="Link-state vs distance-vector">
+<div class="tw"><table>
+<thead><tr><th></th><th>Link-state (Dijkstra)</th><th>Distance-vector (Bellman-Ford)</th></tr></thead>
+<tbody>
+<tr><th>Knowledge</th><td>Whole network map</td><td>Neighbours only</td></tr>
+<tr><th>Messages</th><td>Flood link state to everyone</td><td>Exchange vectors with neighbours</td></tr>
+<tr><th>Convergence</th><td>Fast, no loops</td><td>Slower, can loop (count-to-infinity)</td></tr>
+<tr><th>Cost</th><td>CPU and memory heavy per router</td><td>Lightweight, but slow to fix failures</td></tr>
+<tr><th>Real protocol</th><td>OSPF</td><td>RIP</td></tr>
+<tr><th>Analogy</th><td>A company org chart everyone can see</td><td>Office gossip</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>In routing, what do nodes, edges, and weights stand for?</summary><p>Routers, links, and link costs (delay, hops, or inverse bandwidth).</p></details>
+<details><summary>X reaches Z directly at cost 10. Neighbour W (cost 3 away) advertises cost 4 to Z. Neighbour Y (cost 1 away) advertises cost 8. What is X's new cost and next hop?</summary><p>min(10, 3 + 4 = 7, 1 + 8 = 9) = 7, via W.</p></details>
+<details><summary>What causes count-to-infinity?</summary><p>After a link fails, a router accepts a neighbour's stale route that actually passes through itself. The two keep increasing their costs in turn.</p></details>
+<details><summary>Difference between split horizon and poisoned reverse?</summary><p>Split horizon: say nothing about a route to the neighbour you learned it from. Poisoned reverse: advertise it back to that neighbour with infinite cost.</p></details>
+<details><summary>Which converges faster, and which is lighter on each router?</summary><p>Link-state converges faster. Distance-vector is lighter.</p></details>
+</div>
+<p class="watch" data-topics="dijkstra-link-state distance-vector"><a class="search" href="https://www.youtube.com/results?search_query=link+state+vs+distance+vector+routing+explained">Search YouTube: link-state vs distance-vector routing</a></p>
+</section>
+
+<!-- ============================================================ protocols -->
+<section class="lec" id="protocols">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span></p>
+  <h2>Routing protocols: RIP, OSPF, BGP</h2>
+  <p class="oneline">The algorithms are the engines; the protocols are the real software that runs them. RIP and OSPF work inside one organisation, BGP connects organisations.</p>
+</header>
+<p>The Internet is divided into <strong>Autonomous Systems (AS)</strong>: networks under one administration (an ISP, a university, Google). Routing <em>inside</em> an AS uses an <strong>interior</strong> protocol (IGP); routing <em>between</em> ASes uses an <strong>exterior</strong> protocol (EGP).</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>RIP</th><th>OSPF</th><th>BGP</th></tr></thead>
+<tbody>
+<tr><th>Full name</th><td>Routing Information Protocol</td><td>Open Shortest Path First</td><td>Border Gateway Protocol</td></tr>
+<tr><th>Type</th><td>Distance-vector</td><td>Link-state</td><td>Path-vector</td></tr>
+<tr><th>Algorithm</th><td>Bellman-Ford</td><td>Dijkstra</td><td>Best path chosen by policy</td></tr>
+<tr><th>Scope</th><td>Inside an AS (small networks)</td><td>Inside an AS (large networks)</td><td><strong>Between</strong> ASes: "the Internet's glue"</td></tr>
+<tr><th>Metric</th><td>Hop count (max 15; 16 = unreachable)</td><td>Cost, usually based on link bandwidth</td><td>AS path and business policies</td></tr>
+<tr><th>Updates</th><td>Whole table to neighbours every 30 s</td><td>Link-state floods when something changes</td><td>Incremental, over TCP port 179</td></tr>
+<tr><th>Convergence</th><td>Slow</td><td>Fast</td><td>Slow but very scalable</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>RIP</strong>'s 15-hop limit is its built-in answer to count-to-infinity: "infinity" is 16.</li>
+<li><strong>OSPF</strong> can split a big network into <strong>areas</strong> to keep the map small.</li>
+<li><strong>BGP</strong> advertises the whole <strong>list of ASes</strong> on the way to a destination (hence "path-vector"). A router that sees its own AS in the list rejects the route, so loops cannot form. BGP chooses routes by policy (who pays whom), not just shortest distance.</li>
+</ul>
+<aside class="box aws" data-t="AWS mirror">
+<p>AWS route tables hide all of this: inside a VPC you write static routes (local, IGW, NAT) and AWS does the rest. BGP appears when you connect your own data centre using Direct Connect or a Site-to-Site VPN.</p>
+</aside>
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>Which protocol is link-state, which is distance-vector, which is path-vector?</summary><p>OSPF, RIP, BGP.</p></details>
+<details><summary>What is RIP's metric and its limit?</summary><p>Hop count, maximum 15. 16 means unreachable.</p></details>
+<details><summary>Which protocol routes between Autonomous Systems?</summary><p>BGP.</p></details>
+</div>
+<p class="watch" data-topics="rip-ospf-bgp"><a class="search" href="https://www.youtube.com/results?search_query=RIP+vs+OSPF+vs+BGP+explained">Search YouTube: RIP vs OSPF vs BGP</a></p>
+</section>
+
+<!-- ============================================================ firewalls -->
+<section class="lec" id="firewalls">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span></p>
+  <h2>Firewalls: stateful vs stateless, Security Groups vs NACLs</h2>
+  <p class="oneline">A stateless firewall judges each packet alone; a stateful firewall remembers connections, so replies to traffic you allowed are let back in automatically.</p>
+</header>
+<div class="tw"><table>
+<thead><tr><th></th><th>Stateless filtering</th><th>Stateful filtering</th></tr></thead>
+<tbody>
+<tr><th>Looks at</th><td>Each packet by itself: source/destination IP, ports, protocol</td><td>The packet <strong>and</strong> the connection it belongs to (keeps a connection table)</td></tr>
+<tr><th>Return traffic</th><td>Needs its own explicit rule</td><td>Allowed automatically if the outgoing request was allowed</td></tr>
+<tr><th>Speed / memory</th><td>Faster, no memory</td><td>Slightly more work, needs memory</td></tr>
+<tr><th>Security</th><td>Weaker: easy to leave return ports wide open</td><td>Stronger: only replies to real connections get in</td></tr>
+</tbody></table></div>
+
+<h3 id="sg-nacl">AWS: Security Groups vs Network ACLs</h3>
+<p>AWS gives you <strong>two layers of defence</strong>.</p>
+<div class="box exam" data-t="The comparison to memorise">
+<div class="tw"><table>
+<thead><tr><th></th><th>Security Group (SG)</th><th>Network ACL (NACL)</th></tr></thead>
+<tbody>
+<tr><th>Protects</th><td>An <strong>instance</strong> (its network interface)</td><td>A whole <strong>subnet</strong></td></tr>
+<tr><th>State</th><td><strong>Stateful</strong></td><td><strong>Stateless</strong></td></tr>
+<tr><th>Rules</th><td><strong>Allow</strong> rules only</td><td><strong>Allow and deny</strong> rules</td></tr>
+<tr><th>Evaluation</th><td>All rules are considered together</td><td>Rules are checked in <strong>number order</strong>; first match wins</td></tr>
+<tr><th>Return traffic</th><td>Automatic</td><td>Must be allowed explicitly (ephemeral ports 1024–65535)</td></tr>
+<tr><th>Default</th><td>Deny all inbound, allow all outbound</td><td>The default NACL allows everything</td></tr>
+</tbody></table></div>
+</div>
+<div class="box example" data-t="Multi-tier example">
+<p>Web tier SG: allow 443 from anywhere. App tier SG: allow 8080 <strong>only from the web tier's security group</strong>. Database SG: allow 3306 only from the app tier's security group. A NACL on the database subnet can additionally <strong>deny</strong> a known bad IP range, which a security group cannot do.</p>
+</div>
+<aside class="box aws" data-t="VPC Flow Logs">
+<p><strong>VPC Flow Logs</strong> record metadata about traffic in your VPC: source and destination IP, ports, protocol, packet and byte counts, and whether it was <strong>ACCEPT</strong>ed or <strong>REJECT</strong>ed. They do not record packet contents. They go to CloudWatch Logs or S3 and are used to debug "why can't this reach that?" and to spot attacks. Think of them as a cloud-native, summary-level Wireshark.</p>
+</aside>
+<div class="quiz">
+<h3>Check yourself</h3>
+<details><summary>An instance sends a request out and the reply is blocked. SG or NACL is the likely cause?</summary><p>The NACL. It is stateless, so the inbound reply needs its own allow rule. A security group would let the reply in automatically.</p></details>
+<details><summary>You must block one specific IP address. SG or NACL?</summary><p>NACL. Security groups have no deny rules.</p></details>
+<details><summary>What does "stateful" mean for a firewall?</summary><p>It tracks connections, so traffic that is part of an allowed connection (such as the reply) is permitted without a separate rule.</p></details>
+</div>
+<p class="watch" data-topics="firewalls sg-vs-nacl"><a class="search" href="https://www.youtube.com/results?search_query=stateful+vs+stateless+firewall+security+group+vs+NACL">Search YouTube: stateful vs stateless firewalls; SG vs NACL</a></p>
+</section>
+
+<!-- ============================================================ attacks -->
+<section class="lec" id="attacks">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span></p>
+  <h2>Encryption recap, common attacks, and AWS protections</h2>
+  <p class="oneline">Most attacks either listen in, lie about an address, or flood the target; each has a standard defence.</p>
+</header>
+<p><strong>TLS, certificate chains, symmetric vs asymmetric encryption</strong> are covered in full in <a href="02-application-layer.html#l6">Lecture 6</a>. The cloud piece: <strong>AWS Certificate Manager (ACM)</strong> gives free public TLS certificates with <strong>automatic renewal</strong>; you attach one to an ALB and add an HTTPS listener on port 443.</p>
+<div class="tw"><table>
+<thead><tr><th>Attack</th><th>What the attacker does</th><th>Defence</th></tr></thead>
+<tbody>
+<tr><th>Man-in-the-middle (MITM)</th><td>Sits between two parties, relaying and reading or altering traffic while each side thinks it is talking to the other</td><td>TLS with certificate validation</td></tr>
+<tr><th>DNS spoofing / cache poisoning</th><td>Puts a false record in a resolver's cache so a real name points to the attacker's IP</td><td>DNSSEC (signed DNS answers); HTTPS, since the fake site cannot present a valid certificate</td></tr>
+<tr><th>DDoS<br><span class="small muted">Distributed Denial of Service</span></th><td>Thousands of hijacked machines flood the target until real users cannot get through. Example: a <strong>SYN flood</strong> sends huge numbers of SYNs and never completes the handshake, filling the server's connection table.</td><td>Absorb and filter at the edge: CDN, load balancers, auto scaling, rate limiting, AWS Shield</td></tr>
+</tbody></table></div>
+<aside class="box aws" data-t="AWS WAF and Shield">
+<ul>
+<li><strong>AWS Shield</strong> protects against DDoS at layers 3 and 4. <strong>Shield Standard</strong> is free and automatic; <strong>Shield Advanced</strong> is paid, with more protection and a response team.</li>
+<li><strong>AWS WAF</strong> (Web Application Firewall) works at <strong>layer 7</strong>. It inspects HTTP requests and blocks things like SQL injection, cross-site scripting, and request floods (rate-based rules). It attaches to CloudFront or an ALB.</li>
+</ul>
+</aside>
+<p class="watch" data-topics="attacks"><a class="search" href="https://www.youtube.com/results?search_query=DDoS+MITM+DNS+spoofing+attacks+explained">Search YouTube: MITM, DNS spoofing, DDoS explained</a></p>
+</section>
+
+<!-- ============================================================ vpn -->
+<section class="lec" id="vpn">
+<header class="lec-head">
+  <p class="tags"><span class="tag after">After mid-sem</span><span class="tag warn">From syllabus + textbook</span></p>
+  <h2>VPNs: IPSec, OpenVPN, WireGuard</h2>
+  <p class="oneline">A VPN builds an encrypted tunnel across the public Internet, so two private networks (or you and your office) can talk as if joined by a private cable.</p>
+</header>
+<p>A <strong>VPN</strong> (Virtual Private Network) takes each packet, <strong>encrypts</strong> it, and wraps it inside another packet addressed to the VPN server (<strong>tunneling</strong>: encapsulation again). Anyone in between sees only scrambled data going to the VPN server.</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>IPSec</th><th>OpenVPN</th><th>WireGuard</th></tr></thead>
+<tbody>
+<tr><th>Works at</th><td>Network layer (L3)</td><td>Uses TLS, runs as a program</td><td>Network layer, inside the OS kernel</td></tr>
+<tr><th>Transport</th><td>Its own protocols (ESP), UDP 500/4500 for key setup</td><td>UDP or TCP (often 1194 or 443)</td><td>UDP only</td></tr>
+<tr><th>Character</th><td>Old, standard, complex; supported by every router</td><td>Flexible, passes through most firewalls, slower</td><td>Modern, very small codebase, fast, simple to set up</td></tr>
+<tr><th>Typical use</th><td>Site-to-site links between offices and clouds</td><td>Remote-access VPNs</td><td>Newer remote-access and site-to-site VPNs</td></tr>
+</tbody></table></div>
+<aside class="box aws" data-t="AWS mirror">
+<p><strong>AWS Site-to-Site VPN</strong> uses IPSec tunnels between your office router and your VPC. See <a href="06-link-physical-cloud.html#cloud-scale">hybrid cloud</a>.</p>
+</aside>
+<p class="watch" data-topics="vpn"><a class="search" href="https://www.youtube.com/results?search_query=how+VPN+works+IPSec+WireGuard+OpenVPN">Search YouTube: how VPNs work</a></p>
+</section>
+
+<div class="pager"><a href="04-ip-addressing.html">← IP addressing</a><a href="06-link-physical-cloud.html">Next: Link and physical layers →</a></div>
+
+</main>
+</div>
+<script src="assets/videos.js"></script>
+<script src="assets/notes.js"></script>
+</body>
+</html>
